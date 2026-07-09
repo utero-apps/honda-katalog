@@ -1,0 +1,32 @@
+services:
+  catalog-product:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catalog-product
+    restart: always
+    ports:
+      - "7780:7780"
+    environment:
+      - PORT=7780
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    env_file:
+      - .env.local
+    networks:
+      - carubra-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-catalog
+    restart: always
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env.local
+    networks:
+      - carubra-network
+
+networks:
+  carubra-network:
+    external: true
+
