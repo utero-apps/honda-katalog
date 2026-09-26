@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: honda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-honda_workshop}
+      POSTGRES_USER: ${POSTGRES_USER:-honda_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - honda-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-honda_owner} -d ${POSTGRES_DB:-honda_workshop}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - honda-internal
+
   catalog-product:
     build:
       context: .
@@ -11,22 +31,39 @@ services:
       - PORT=7780
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=${POSTGRES_DB:-honda_workshop}
+      - DATABASE_USER=honda_runtime
+      - DATABASE_PASSWORD=${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD is required}
     env_file:
       - .env.local
     networks:
+      - honda-internal
       - carubra-network
+      - maskhar-network
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared-catalog
-    restart: always
-    command: tunnel --no-autoupdate run
-    env_file:
-      - .env.local
-    networks:
-      - carubra-network
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: cloudflared-catalog
+  #   restart: always
+  #   command: tunnel --no-autoupdate run
+  #   env_file:
+  #     - .env.local
+  #   networks:
+  #     - carubra-network
+  #     - maskhar-network
 
 networks:
+  honda-internal:
+    internal: true
   carubra-network:
     external: true
+  maskhar-network:
+    external: true
 
+volumes:
+  honda-postgres-data:

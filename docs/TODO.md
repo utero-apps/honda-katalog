@@ -19,53 +19,53 @@
 
 ## 1. Foundation
 
-- [ ] FND-001 [P0] Upgrade Next.js patched dan lockfile.
-- [ ] FND-002 [P0] Hapus Supabase dependency/env/code.
-- [ ] FND-003 [P0] Tambah `pg`, Zod, test tooling, npm canonical.
-- [ ] FND-004 [P0] Bentuk `features` dan `server` boundaries.
-- [ ] FND-005 [P1] Environment validation fail-fast.
+- [x] FND-001 [P0] Upgrade Next.js patched dan lockfile.
+- [x] FND-002 [P0] Hapus Supabase dependency/env/code.
+- [x] FND-003 [P0] Tambah `pg`, Zod, test tooling, npm canonical.
+- [x] FND-004 [P0] Bentuk `features` dan `server` boundaries.
+- [x] FND-005 [P1] Environment validation fail-fast.
 - [ ] FND-006 [P1] Response envelope, request ID, safe error, structured log.
-- [ ] FND-007 [P1] Security headers/CSP dan route boundaries.
+- [x] FND-007 [P1] Security headers/CSP dan route boundaries.
 
 ## 2. PostgreSQL
 
-- [ ] DB-001 [P0] PostgreSQL service, volume, health check.
-- [ ] DB-002 [P0] Pisahkan migration owner dan runtime role.
-- [ ] DB-003 [P0] Migration runner dan ledger.
-- [ ] DB-004 [P0] Identity/security schema.
-- [ ] DB-005 [P0] Catalog schema, constraints, indexes.
-- [ ] DB-006 [P0] Customer/vehicle/service/mechanic schema.
-- [ ] DB-007 [P0] Inventory ledger dan balance schema.
-- [ ] DB-008 [P0] Vendor/PO/receiving schema.
-- [ ] DB-009 [P0] Invoice/payment/expense/fee schema.
-- [ ] DB-010 [P1] CRM/reporting structures.
-- [ ] DB-011 [P0] Enable/force RLS semua tabel bisnis.
-- [ ] DB-012 [P0] Least-privilege grant dan policy.
+- [x] DB-001 [P0] PostgreSQL service, volume, health check.
+- [x] DB-002 [P0] Pisahkan migration owner dan runtime role.
+- [x] DB-003 [P0] Migration runner dan ledger.
+- [x] DB-004 [P0] Identity/security schema.
+- [x] DB-005 [P0] Catalog schema, constraints, indexes.
+- [x] DB-006 [P0] Customer/vehicle/service/mechanic schema.
+- [x] DB-007 [P0] Inventory ledger dan balance schema.
+- [x] DB-008 [P0] Vendor/PO/receiving schema.
+- [x] DB-009 [P0] Invoice/payment/expense/fee schema.
+- [x] DB-010 [P1] CRM/reporting structures.
+- [x] DB-011 [P0] Enable/force RLS semua tabel bisnis.
+- [x] DB-012 [P0] Least-privilege grant dan policy.
 - [ ] DB-013 [P0] RLS matrix integration tests.
-- [ ] DB-014 [P1] Seed role, permission, admin, category, model, warehouse.
+- [x] DB-014 [P1] Seed role, permission, admin, category, model, warehouse.
 
 ## 3. Authentication dan Security
 
-- [ ] SEC-001 [P0] Password hashing/verification.
-- [ ] SEC-002 [P0] Opaque DB sessions.
-- [ ] SEC-003 [P0] Login/logout/current-user API dan UI.
-- [ ] SEC-004 [P0] RBAC permission checks.
-- [ ] SEC-005 [P0] Transaction-local RLS identity.
-- [ ] SEC-006 [P0] Origin/CSRF protection.
+- [x] SEC-001 [P0] Password hashing/verification.
+- [x] SEC-002 [P0] Opaque DB sessions.
+- [x] SEC-003 [P0] Login/logout/current-user API dan UI.
+- [x] SEC-004 [P0] RBAC permission checks.
+- [x] SEC-005 [P0] Transaction-local RLS identity.
+- [x] SEC-006 [P0] Origin/CSRF protection.
 - [ ] SEC-007 [P1] Rate limit, rotation, expiry, revocation.
 - [ ] SEC-008 [P1] Audit events.
 - [ ] SEC-009 [P0] Test anonymous, IDOR, escalation, injection, replay.
-- [ ] SEC-010 [P0] Hapus raw backend error dari response.
+- [x] SEC-010 [P0] Hapus raw backend error dari response.
 
 ## 4. Phase 1 - Catalog
 
-- [ ] CAT-001 [P0] Product/category/model/compatibility services.
-- [ ] CAT-002 [P0] Paginated DB-side search/filter.
-- [ ] CAT-003 [P0] Product CRUD validation/permission.
+- [x] CAT-001 [P0] Product/category/model/compatibility services.
+- [x] CAT-002 [P0] Paginated DB-side search/filter.
+- [x] CAT-003 [P0] Product CRUD validation/permission.
 - [ ] CAT-004 [P1] Barcode CRUD/scanner.
-- [ ] CAT-005 [P1] HET, HPP, unit, minimum stock, lifecycle.
-- [ ] CAT-006 [P1] Normalisasi category/compatibility.
-- [ ] CAT-007 [P1] Accessible responsive catalog UI.
+- [x] CAT-005 [P1] HET, HPP, unit, minimum stock, lifecycle.
+- [x] CAT-006 [P1] Normalisasi category/compatibility.
+- [x] CAT-007 [P1] Accessible responsive catalog UI.
 - [ ] CAT-008 [P0] CSV preview/validation/dedup/report.
 - [ ] CAT-009 [P0] Supabase/current-data export/import.
 - [ ] CAT-010 [P0] Reconcile count, duplicate, price, search.
