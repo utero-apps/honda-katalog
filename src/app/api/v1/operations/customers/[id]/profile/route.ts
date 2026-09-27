@@ -1,0 +1,8 @@
+import crypto from "node:crypto";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { requirePermission } from "@/server/auth/permissions";
+import { withActorTransaction } from "@/server/db";
+import { ApiError, fail, ok } from "@/server/http";
+
+export async function GET(request:NextRequest,context:{params:Promise<{id:string}>}){try{const requestId=crypto.randomUUID();const user=await requirePermission(request,requestId,"service.read");const id=z.uuid().parse((await context.params).id);const data=await withActorTransaction({userId:user.id,role:user.role,requestId},async client=>{const customer=(await client.query("SELECT id,name,phone,email,address,notes,created_at AS \"createdAt\" FROM app.customers WHERE id=$1",[id])).rows[0];if(!customer)throw new ApiError(404,"CUSTOMER_NOT_FOUND","Pelanggan tidak ditemukan");const[vehicles,orders,followUps]=await Promise.all([client.query("SELECT id,plate_number AS \"plateNumber\",year,odometer::text FROM app.customer_vehicles WHERE customer_id=$1 ORDER BY updated_at DESC",[id]),client.query("SELECT id,order_number AS \"orderNumber\",status,complaint,opened_at AS \"openedAt\",completed_at AS \"completedAt\" FROM app.service_orders WHERE customer_id=$1 ORDER BY created_at DESC",[id]),client.query("SELECT id,due_at AS \"dueAt\",channel,status,notes FROM app.customer_follow_ups WHERE customer_id=$1 ORDER BY due_at DESC",[id])]);return{customer,vehicles:vehicles.rows.map(row=>({...row,odometer:Number(row.odometer)})),orders:orders.rows,followUps:followUps.rows};});return ok(data,{requestId});}catch(error){return fail(error);}}

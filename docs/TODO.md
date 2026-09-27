@@ -5,6 +5,7 @@
 - File ini adalah source of truth implementasi.
 - Task selesai hanya setelah code, test, dan bukti tersedia.
 - P0 memblokir production; P1 memblokir complete release; P2 enhancement.
+- Status disinkronkan 27 September 2026; checkbox selesai berarti code dan quality gate tersedia. Item E2E tetap terbuka sampai workflow terverifikasi end-to-end.
 
 ## 0. Documentation
 
@@ -24,7 +25,7 @@
 - [x] FND-003 [P0] Tambah `pg`, Zod, test tooling, npm canonical.
 - [x] FND-004 [P0] Bentuk `features` dan `server` boundaries.
 - [x] FND-005 [P1] Environment validation fail-fast.
-- [ ] FND-006 [P1] Response envelope, request ID, safe error, structured log.
+- [x] FND-006 [P1] Response envelope, request ID, safe error, structured log.
 - [x] FND-007 [P1] Security headers/CSP dan route boundaries.
 
 ## 2. PostgreSQL
@@ -53,7 +54,7 @@
 - [x] SEC-005 [P0] Transaction-local RLS identity.
 - [x] SEC-006 [P0] Origin/CSRF protection.
 - [ ] SEC-007 [P1] Rate limit, rotation, expiry, revocation.
-- [ ] SEC-008 [P1] Audit events.
+- [x] SEC-008 [P1] Audit events.
 - [ ] SEC-009 [P0] Test anonymous, IDOR, escalation, injection, replay.
 - [x] SEC-010 [P0] Hapus raw backend error dari response.
 
@@ -75,39 +76,39 @@
 
 - [ ] P2-001 [P1] Customer dan vehicle management.
 - [ ] P2-002 [P1] Mechanic management.
-- [ ] P2-003 [P1] Service Order state machine.
-- [ ] P2-004 [P1] Complaint, diagnosis, assignment, job, part, QC.
-- [ ] P2-005 [P1] Service history.
-- [ ] P2-006 [P1] Warehouse dan stock overview.
-- [ ] P2-007 [P0] Transactional stock movements/balances.
-- [ ] P2-008 [P1] Reservation/service consumption.
-- [ ] P2-009 [P1] Adjustment dan stock opname.
-- [ ] P2-010 [P1] Low-stock alert.
+- [x] P2-003 [P1] Service Order state machine.
+- [x] P2-004 [P1] Complaint, diagnosis, assignment, job, part, QC.
+- [x] P2-005 [P1] Service history.
+- [x] P2-006 [P1] Warehouse dan stock overview.
+- [x] P2-007 [P0] Transactional stock movements/balances.
+- [x] P2-008 [P1] Reservation/service consumption.
+- [x] P2-009 [P1] Adjustment dan stock opname.
+- [x] P2-010 [P1] Low-stock alert.
 - [ ] P2-011 [P1] Service/inventory RLS/API/E2E tests.
 
 ## 6. Phase 3 - Business
 
-- [ ] P3-001 [P1] Vendor dan vendor-product.
-- [ ] P3-002 [P1] PO lifecycle/approval.
-- [ ] P3-003 [P0] Receiving atomik dengan stock posting.
-- [ ] P3-004 [P1] Vendor invoice/payable aging.
-- [ ] P3-005 [P1] Customer invoice dari Service Order.
-- [ ] P3-006 [P1] Customer/vendor payment.
-- [ ] P3-007 [P1] Income/expense.
+- [x] P3-001 [P1] Vendor dan vendor-product.
+- [x] P3-002 [P1] PO lifecycle/approval.
+- [x] P3-003 [P0] Receiving atomik dengan stock posting.
+- [x] P3-004 [P1] Vendor invoice/payable aging.
+- [x] P3-005 [P1] Customer invoice dari Service Order.
+- [x] P3-006 [P1] Customer/vendor payment.
+- [x] P3-007 [P1] Income/expense.
 - [ ] P3-008 [P1] HPP/COGS/profit/margin.
-- [ ] P3-009 [P1] Mechanic fee.
+- [x] P3-009 [P1] Mechanic fee.
 - [x] P3-010 [P0] Reversal posted records.
 - [ ] P3-011 [P1] Reconciliation/E2E tests.
 
 ## 7. Phase 4 - Intelligence
 
 - [ ] P4-001 [P1] Customer profile/history.
-- [ ] P4-002 [P1] Follow-up/reminder.
-- [ ] P4-003 [P1] Mechanic performance.
-- [ ] P4-004 [P1] Owner dashboard.
-- [ ] P4-005 [P1] Domain reports.
+- [x] P4-002 [P1] Follow-up/reminder.
+- [x] P4-003 [P1] Mechanic performance.
+- [x] P4-004 [P1] Owner dashboard.
+- [x] P4-005 [P1] Domain reports.
 - [ ] P4-006 [P1] Product, retention, turnover metrics.
-- [ ] P4-007 [P2] CSV export.
+- [x] P4-007 [P2] CSV export.
 - [ ] P4-008 [P1] Report reconciliation tests.
 
 ## 8. UX dan Accessibility
@@ -122,15 +123,15 @@
 
 ## 9. Audit Remediation
 
-- [ ] AUD-001 [P0] Hapus anonymous mutation dan disabled RLS.
-- [ ] AUD-002 [P0] Perbaiki vulnerable dependency chain.
-- [ ] AUD-003 [P0] Runtime validation seluruh boundary.
-- [ ] AUD-004 [P1] Perbaiki search race dan scanner lifecycle.
-- [ ] AUD-005 [P1] Constraint uniqueness/price/status/relasi.
-- [ ] AUD-006 [P1] Hapus detail error dan secret exposure.
-- [ ] AUD-007 [P1] Ganti manual SQL dengan migrations.
-- [ ] AUD-008 [P1] Hapus fixture mati setelah reconciliation.
-- [ ] AUD-009 [P0] Lint lulus tanpa warning.
+- [x] AUD-001 [P0] Hapus anonymous mutation dan disabled RLS.
+- [x] AUD-002 [P0] Perbaiki vulnerable dependency chain.
+- [x] AUD-003 [P0] Runtime validation seluruh boundary.
+- [x] AUD-004 [P1] Perbaiki search race dan scanner lifecycle.
+- [x] AUD-005 [P1] Constraint uniqueness/price/status/relasi.
+- [x] AUD-006 [P1] Hapus detail error dan secret exposure.
+- [x] AUD-007 [P1] Ganti manual SQL dengan migrations.
+- [x] AUD-008 [P1] Hapus fixture mati setelah reconciliation.
+- [x] AUD-009 [P0] Lint lulus tanpa warning.
 
 ## 10. Test, DevOps, Release
 
@@ -139,10 +140,10 @@
 - [ ] QA-003 [P1] Main API/workflow/accessibility tests.
 - [x] QA-004 [P0] Lint, typecheck, tests, build pass.
 - [x] QA-005 [P0] 0 critical/high production audit.
-- [ ] OPS-001 [P0] Production-safe Docker Compose.
-- [ ] OPS-002 [P0] PostgreSQL private dan web non-root.
-- [ ] OPS-003 [P1] CI, health/readiness, structured logs.
+- [x] OPS-001 [P0] Production-safe Docker Compose.
+- [x] OPS-002 [P0] PostgreSQL private dan web non-root.
+- [x] OPS-003 [P1] CI, health/readiness, structured logs.
 - [x] OPS-004 [P1] Backup/restore scripts dan verification.
-- [ ] REL-001 [P0] Tidak ada runtime Supabase reference.
+- [x] REL-001 [P0] Tidak ada runtime Supabase reference.
 - [ ] REL-002 [P0] Main Phase 1-4 E2E pass.
 - [ ] REL-003 [P0] Docker smoke dan final security audit pass.
