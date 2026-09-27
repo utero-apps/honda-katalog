@@ -12,7 +12,8 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
     "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
-    "db:restore": "node --env-file-if-exists=.env.local scripts/restore.mjs"
+    "db:restore": "node --env-file-if-exists=.env.local scripts/restore.mjs",
+    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-db.mjs"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",

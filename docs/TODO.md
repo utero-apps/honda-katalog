@@ -15,7 +15,7 @@
 - [x] DOC-005 [P0] Agent Operating Model.
 - [x] DOC-006 [P0] Master TODO.
 - [ ] DOC-007 [P1] README aktual.
-- [ ] DOC-008 [P1] Backup, restore, incident, release runbook.
+- [x] DOC-008 [P1] Backup, restore, incident, release runbook.
 
 ## 1. Foundation
 
@@ -41,7 +41,7 @@
 - [x] DB-010 [P1] CRM/reporting structures.
 - [x] DB-011 [P0] Enable/force RLS semua tabel bisnis.
 - [x] DB-012 [P0] Least-privilege grant dan policy.
-- [ ] DB-013 [P0] RLS matrix integration tests.
+- [x] DB-013 [P0] RLS matrix integration tests.
 - [x] DB-014 [P1] Seed role, permission, admin, category, model, warehouse.
 
 ## 3. Authentication dan Security
@@ -134,11 +134,11 @@
 
 ## 10. Test, DevOps, Release
 
-- [ ] QA-001 [P0] Unit/integration/E2E tooling dan test DB.
-- [ ] QA-002 [P0] Empty DB migration dan RLS matrix pass.
+- [x] QA-001 [P0] Unit/integration/E2E tooling dan test DB.
+- [x] QA-002 [P0] Empty DB migration dan RLS matrix pass.
 - [ ] QA-003 [P1] Main API/workflow/accessibility tests.
-- [ ] QA-004 [P0] Lint, typecheck, tests, build pass.
-- [ ] QA-005 [P0] 0 critical/high production audit.
+- [x] QA-004 [P0] Lint, typecheck, tests, build pass.
+- [x] QA-005 [P0] 0 critical/high production audit.
 - [ ] OPS-001 [P0] Production-safe Docker Compose.
 - [ ] OPS-002 [P0] PostgreSQL private dan web non-root.
 - [ ] OPS-003 [P1] CI, health/readiness, structured logs.
