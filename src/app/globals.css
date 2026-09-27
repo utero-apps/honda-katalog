@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --dashboard-primary: #0f3d91;
+  --dashboard-primary-dark: #082f72;
+  --dashboard-accent: #d97706;
+  --dashboard-surface: #ffffff;
+  --dashboard-muted: #eef3fb;
+  --dashboard-border: #dbe5f2;
+  --dashboard-ring: #2563eb;
 }
 
 @theme inline {
@@ -12,17 +19,127 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.dashboard-shell {
+  background:
+    radial-gradient(circle at 88% -10%, rgb(219 234 254 / 0.8), transparent 28rem),
+    var(--background);
+}
+
+.dashboard-hero {
+  background: linear-gradient(132deg, #082f72 0%, #0f4aa6 55%, #2563eb 100%);
+  box-shadow: 0 24px 48px rgb(15 61 145 / 0.18);
+}
+
+.dashboard-panel,
+.dashboard-product-card {
+  border: 1px solid var(--dashboard-border);
+  background: var(--dashboard-surface);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.05);
+}
+
+.dashboard-product-card {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.dashboard-product-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 16px 36px rgb(15 61 145 / 0.1);
+  transform: translateY(-2px);
+}
+
+.dashboard-primary-button {
+  background: var(--dashboard-primary);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgb(15 61 145 / 0.2);
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.dashboard-primary-button:hover {
+  background: var(--dashboard-primary-dark);
+  box-shadow: 0 12px 24px rgb(15 61 145 / 0.26);
+  transform: translateY(-1px);
+}
+
+.dashboard-primary-button:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+  transform: none;
+}
+
+.dashboard-input {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  caret-color: #0f172a;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.dashboard-input:hover {
+  border-color: #93c5fd;
+}
+
+.dashboard-input:focus {
+  border-color: var(--dashboard-ring);
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 0.14);
+  outline: 0;
+}
+
+.dashboard-eyebrow {
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dashboard-nav-link {
+  display: block;
+  border-radius: 0.75rem;
+  padding: 0.72rem 0.82rem;
+  color: #bfdbfe;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.dashboard-nav-link:hover {
+  background: rgb(30 64 175 / 0.58);
+  color: #ffffff;
+}
+
+.dashboard-nav-link-active {
+  background: #ffffff;
+  color: #0f3d91;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 80;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-160%);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 0.7rem 1rem;
+  color: #0f3d91;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.18);
+  transition: transform 180ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 :where(button, input, select, textarea, a):focus-visible {
@@ -51,6 +168,10 @@ body {
   box-shadow: 0 0 0 1px #b91c1c;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 @media (max-width: 360px) {
   .dialog-backdrop {
     padding: 0;
@@ -71,5 +192,12 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-product-card:hover,
+  .dashboard-primary-button:hover {
+    transform: none;
   }
 }

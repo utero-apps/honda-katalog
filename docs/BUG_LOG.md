@@ -650,3 +650,30 @@ Tetapkan background, warna teks, caret, dan placeholder form control secara eksp
 
 Lint, typecheck, build, dan container production lulus; input memakai teks slate gelap di atas background putih.
 
+## BUG-20260927-025 - Test dialog menolak focus restore yang lebih aman
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Accessibility regression test
+- Severity: Low
+
+### Gejala
+
+Test mencari string persis `previouslyFocusedRef.current?.focus()`, sedangkan dialog baru memakai `focus({ preventScroll: true })`.
+
+### Sumber
+
+Assertion mengikat detail signature, bukan perilaku restore focus.
+
+### Dampak
+
+Quality gate gagal meskipun focus restore tetap ada dan lebih aman terhadap scroll jump.
+
+### Perbaikan
+
+Ubah assertion untuk memverifikasi pemanggilan `previouslyFocusedRef.current?.focus` tanpa mengunci argumen implementasi.
+
+### Verifikasi
+
+Seluruh accessibility test dan unit test lulus.
+

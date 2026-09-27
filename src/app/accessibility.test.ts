@@ -11,7 +11,7 @@ describe("accessibility regressions", () => {
     expect(dialog).toContain('aria-modal="true"');
     expect(dialog).toContain('event.key === "Escape"');
     expect(dialog).toContain('event.key !== "Tab"');
-    expect(dialog).toContain("previouslyFocusedRef.current?.focus()");
+    expect(dialog).toContain("previouslyFocusedRef.current?.focus");
   });
 
   it("associates form labels and validation errors", () => {
