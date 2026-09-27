@@ -112,11 +112,11 @@
 
 ## 8. UX dan Accessibility
 
-- [ ] UX-001 [P1] App shell dan permission navigation.
-- [ ] UX-002 [P1] Reusable component system.
+- [x] UX-001 [P1] App shell dan permission navigation.
+- [x] UX-002 [P1] Reusable component system.
 - [ ] UX-003 [P1] Dialog/focus/keyboard.
 - [ ] UX-004 [P1] Label/error association.
-- [ ] UX-005 [P1] Loading/empty/error/recovery.
+- [x] UX-005 [P1] Loading/empty/error/recovery.
 - [ ] UX-006 [P1] Mobile 360 px verification.
 - [ ] UX-007 [P1] Accessibility tests.
 

@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { CatalogTools } from "@/components/CatalogTools";
+import { WorkspaceOverview } from "@/components/WorkspaceOverview";
 
 interface User { id: string; email: string; displayName: string; role: string }
 interface Reference { id: string; name: string }
@@ -143,6 +144,7 @@ export default function Home() {
           </article>)}
         </div>
       </section>
+      <WorkspaceOverview role={user.role} />
       {showForm && <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 p-4"><form onSubmit={submitProduct} className="mx-auto my-6 max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
         <div className="flex justify-between"><h2 className="text-xl font-black">{editing ? "Edit Produk" : "Tambah Produk"}</h2><button type="button" onClick={() => setShowForm(false)} className="font-bold">Tutup</button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
