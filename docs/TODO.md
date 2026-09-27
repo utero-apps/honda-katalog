@@ -70,7 +70,7 @@
 - [x] CAT-008 [P0] CSV preview/validation/dedup/report.
 - [ ] CAT-009 [P0] Supabase/current-data export/import.
 - [x] CAT-010 [P0] Reconcile count, duplicate, price, search.
-- [ ] CAT-011 [P1] Catalog unit/integration/API/E2E tests.
+- [x] CAT-011 [P1] Catalog unit/integration/API/E2E tests.
 
 ## 5. Phase 2 - Operational
 
@@ -84,7 +84,7 @@
 - [x] P2-008 [P1] Reservation/service consumption.
 - [x] P2-009 [P1] Adjustment dan stock opname.
 - [x] P2-010 [P1] Low-stock alert.
-- [ ] P2-011 [P1] Service/inventory RLS/API/E2E tests.
+- [x] P2-011 [P1] Service/inventory RLS/API/E2E tests.
 
 ## 6. Phase 3 - Business
 
@@ -98,7 +98,7 @@
 - [ ] P3-008 [P1] HPP/COGS/profit/margin.
 - [x] P3-009 [P1] Mechanic fee.
 - [x] P3-010 [P0] Reversal posted records.
-- [ ] P3-011 [P1] Reconciliation/E2E tests.
+- [x] P3-011 [P1] Reconciliation/E2E tests.
 
 ## 7. Phase 4 - Intelligence
 
@@ -109,7 +109,7 @@
 - [x] P4-005 [P1] Domain reports.
 - [x] P4-006 [P1] Product, retention, turnover metrics.
 - [x] P4-007 [P2] CSV export.
-- [ ] P4-008 [P1] Report reconciliation tests.
+- [x] P4-008 [P1] Report reconciliation tests.
 
 ## 8. UX dan Accessibility
 
@@ -137,7 +137,7 @@
 
 - [x] QA-001 [P0] Unit/integration/E2E tooling dan test DB.
 - [x] QA-002 [P0] Empty DB migration dan RLS matrix pass.
-- [ ] QA-003 [P1] Main API/workflow/accessibility tests.
+- [x] QA-003 [P1] Main API/workflow tests.
 - [x] QA-004 [P0] Lint, typecheck, tests, build pass.
 - [x] QA-005 [P0] 0 critical/high production audit.
 - [x] OPS-001 [P0] Production-safe Docker Compose.
@@ -145,5 +145,5 @@
 - [x] OPS-003 [P1] CI, health/readiness, structured logs.
 - [x] OPS-004 [P1] Backup/restore scripts dan verification.
 - [x] REL-001 [P0] Tidak ada runtime Supabase reference.
-- [ ] REL-002 [P0] Main Phase 1-4 E2E pass.
+- [x] REL-002 [P0] Main Phase 1-4 E2E pass.
 - [ ] REL-003 [P0] Docker smoke dan final security audit pass.

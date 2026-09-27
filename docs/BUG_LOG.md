@@ -299,3 +299,30 @@ Buat ulang PostgreSQL disposable, jalankan migrasi dan seed, lalu inject environ
 ### Verifikasi
 
 Health, login, dan workflow API berhasil terhadap container baru.
+
+## BUG-20260927-012 - Transisi status purchase order menghasilkan HTTP 500
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Purchasing API
+- Severity: High
+
+### Gejala
+
+E2E Phase 3 gagal saat `PATCH /api/v1/business/purchase-orders/:id/status` mengubah purchase order dari `draft` ke `submitted`. API mengembalikan HTTP 500 dengan kode aman `INTERNAL_ERROR`.
+
+### Sumber
+
+Parameter PostgreSQL `$1` dipakai sekaligus sebagai nilai kolom enum `app.purchase_status` dan pembanding string pada `CASE`. PostgreSQL tidak dapat mendeduksi satu tipe konsisten untuk parameter tersebut.
+
+### Dampak
+
+Workflow pembelian berhenti sebelum approval, penerimaan barang, posting stok, dan invoice vendor dapat diuji.
+
+### Perbaikan
+
+Cast eksplisit parameter status ke `app.purchase_status` pada assignment dan kedua kondisi `CASE`.
+
+### Verifikasi
+
+Query parameterized direproduksi terhadap PostgreSQL runtime, lalu workflow E2E Phase 1–4 dijalankan ulang setelah build baru.
