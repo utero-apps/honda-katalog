@@ -146,4 +146,4 @@
 - [x] OPS-004 [P1] Backup/restore scripts dan verification.
 - [x] REL-001 [P0] Tidak ada runtime Supabase reference.
 - [x] REL-002 [P0] Main Phase 1-4 E2E pass.
-- [ ] REL-003 [P0] Docker smoke dan final security audit pass.
+- [x] REL-003 [P0] Docker smoke dan final security audit pass.
