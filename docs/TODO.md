@@ -74,8 +74,8 @@
 
 ## 5. Phase 2 - Operational
 
-- [ ] P2-001 [P1] Customer dan vehicle management.
-- [ ] P2-002 [P1] Mechanic management.
+- [x] P2-001 [P1] Customer dan vehicle management.
+- [x] P2-002 [P1] Mechanic management.
 - [x] P2-003 [P1] Service Order state machine.
 - [x] P2-004 [P1] Complaint, diagnosis, assignment, job, part, QC.
 - [x] P2-005 [P1] Service history.
@@ -102,12 +102,12 @@
 
 ## 7. Phase 4 - Intelligence
 
-- [ ] P4-001 [P1] Customer profile/history.
+- [x] P4-001 [P1] Customer profile/history.
 - [x] P4-002 [P1] Follow-up/reminder.
 - [x] P4-003 [P1] Mechanic performance.
 - [x] P4-004 [P1] Owner dashboard.
 - [x] P4-005 [P1] Domain reports.
-- [ ] P4-006 [P1] Product, retention, turnover metrics.
+- [x] P4-006 [P1] Product, retention, turnover metrics.
 - [x] P4-007 [P2] CSV export.
 - [ ] P4-008 [P1] Report reconciliation tests.
 
