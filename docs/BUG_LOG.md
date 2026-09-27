@@ -272,3 +272,30 @@ Gunakan callback stabil melalui `useCallback`, masukkan callback ke dependency e
 ### Verifikasi
 
 `npm run lint`, typecheck, dan test selesai tanpa error scanner.
+
+## BUG-20260927-011 - Environment E2E hilang setelah container audit dihentikan
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: E2E database
+- Severity: Low
+
+### Gejala
+
+Container `honda-audit-postgres` tidak ditemukan saat server E2E mencari port database.
+
+### Sumber
+
+Container disposable dijalankan dengan opsi `--rm`, sehingga terhapus ketika audit sebelumnya dihentikan.
+
+### Dampak
+
+E2E API tidak dapat memakai database audit lama.
+
+### Perbaikan
+
+Buat ulang PostgreSQL disposable, jalankan migrasi dan seed, lalu inject environment sebelum server E2E dimulai.
+
+### Verifikasi
+
+Health, login, dan workflow API berhasil terhadap container baru.
