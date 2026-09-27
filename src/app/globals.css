@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+:where(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+:where(button, input, select, textarea) {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+[aria-invalid="true"] {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 1px #b91c1c;
+}
+
+@media (max-width: 360px) {
+  .dialog-backdrop {
+    padding: 0;
+  }
+
+  .dialog-panel {
+    min-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -53,7 +53,7 @@
 - [x] SEC-004 [P0] RBAC permission checks.
 - [x] SEC-005 [P0] Transaction-local RLS identity.
 - [x] SEC-006 [P0] Origin/CSRF protection.
-- [ ] SEC-007 [P1] Rate limit, rotation, expiry, revocation.
+- [x] SEC-007 [P1] Rate limit, rotation, expiry, revocation.
 - [x] SEC-008 [P1] Audit events.
 - [x] SEC-009 [P0] Test anonymous, IDOR, escalation, injection, replay.
 - [x] SEC-010 [P0] Hapus raw backend error dari response.
@@ -68,7 +68,7 @@
 - [x] CAT-006 [P1] Normalisasi category/compatibility.
 - [x] CAT-007 [P1] Accessible responsive catalog UI.
 - [x] CAT-008 [P0] CSV preview/validation/dedup/report.
-- [ ] CAT-009 [P0] Supabase/current-data export/import.
+- [x] CAT-009 [P0] Supabase/current-data export/import.
 - [x] CAT-010 [P0] Reconcile count, duplicate, price, search.
 - [x] CAT-011 [P1] Catalog unit/integration/API/E2E tests.
 
@@ -115,11 +115,11 @@
 
 - [x] UX-001 [P1] App shell dan permission navigation.
 - [x] UX-002 [P1] Reusable component system.
-- [ ] UX-003 [P1] Dialog/focus/keyboard.
-- [ ] UX-004 [P1] Label/error association.
+- [x] UX-003 [P1] Dialog/focus/keyboard.
+- [x] UX-004 [P1] Label/error association.
 - [x] UX-005 [P1] Loading/empty/error/recovery.
-- [ ] UX-006 [P1] Mobile 360 px verification.
-- [ ] UX-007 [P1] Accessibility tests.
+- [x] UX-006 [P1] Mobile 360 px verification.
+- [x] UX-007 [P1] Accessibility tests.
 
 ## 9. Audit Remediation
 
