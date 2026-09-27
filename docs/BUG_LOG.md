@@ -623,3 +623,30 @@ Hapus `env_file` dari service web. Tambah image target dan service profile `db-t
 
 Runtime web hanya menerima password role `honda_runtime`; migration dan reset password admin tetap tersedia melalui `db-tools`.
 
+## BUG-20260927-024 - Teks input login tidak terlihat pada dark color scheme
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Login UI
+- Severity: Medium
+
+### Gejala
+
+Teks yang diketik pada input email dan password hampir tidak terlihat di atas background input putih.
+
+### Sumber
+
+Media query dark mode mengubah warna foreground global menjadi putih. Form control mewarisi warna tersebut meskipun background input tetap terang.
+
+### Dampak
+
+Pengguna tidak dapat memeriksa email atau password yang sedang diketik.
+
+### Perbaikan
+
+Tetapkan background, warna teks, caret, dan placeholder form control secara eksplisit dengan kontras tinggi.
+
+### Verifikasi
+
+Lint, typecheck, build, dan container production lulus; input memakai teks slate gelap di atas background putih.
+

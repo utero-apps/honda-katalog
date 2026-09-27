@@ -35,6 +35,17 @@ body {
   touch-action: manipulation;
 }
 
+:where(input, select, textarea) {
+  background-color: #ffffff;
+  color: #0f172a;
+  caret-color: #0f172a;
+}
+
+:where(input, textarea)::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
 [aria-invalid="true"] {
   border-color: #b91c1c;
   box-shadow: 0 0 0 1px #b91c1c;
