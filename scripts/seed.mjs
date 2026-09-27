@@ -47,11 +47,12 @@ try {
   for (const permission of ["catalog.read","catalog.write","inventory.read","inventory.receive","inventory.adjust","purchasing.read","purchasing.write"]) await client.query("INSERT INTO app.role_permissions(role,permission_code) VALUES ('warehouse',$1) ON CONFLICT DO NOTHING", [permission]);
   for (const permission of ["finance.read","finance.post","finance.pay","purchasing.read","reports.read"]) await client.query("INSERT INTO app.role_permissions(role,permission_code) VALUES ('finance',$1) ON CONFLICT DO NOTHING", [permission]);
   await client.query(`INSERT INTO app.users(email,display_name,password_hash,role) VALUES ($1,$2,$3,$4) ON CONFLICT(email) DO UPDATE SET display_name=EXCLUDED.display_name,password_hash=EXCLUDED.password_hash,role=EXCLUDED.role,is_active=true`, [email, displayName, passwordHash, role]);
+  await client.query("UPDATE app.sessions SET revoked_at=now() WHERE user_id=(SELECT id FROM app.users WHERE email=$1) AND revoked_at IS NULL", [email]);
   for (const name of categories) await client.query("INSERT INTO app.product_categories(name,slug) VALUES ($1,$2) ON CONFLICT DO NOTHING", [name, name.toLowerCase().replaceAll(" ", "-")]);
   for (const name of models) await client.query("INSERT INTO app.vehicle_models(name) VALUES ($1) ON CONFLICT DO NOTHING", [name]);
   await client.query("INSERT INTO app.warehouses(code,name) VALUES ('MAIN','Gudang Utama') ON CONFLICT DO NOTHING");
   await client.query("COMMIT");
-  console.log(`seeded owner ${email}`);
+  console.log(`seeded ${role} ${email}`);
 } catch (error) {
   await client.query("ROLLBACK");
   throw error;

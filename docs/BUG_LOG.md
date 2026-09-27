@@ -596,3 +596,30 @@ Gunakan hostname container unik `honda-postgres`, sinkronkan secret runtime, lal
 
 Health endpoint mengembalikan `ok` dan login admin berhasil.
 
+## BUG-20260927-023 - Secret owner dan bootstrap masuk ke runtime aplikasi
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Container security
+- Severity: High
+
+### Gejala
+
+Environment container web berisi `POSTGRES_PASSWORD` dan `BOOTSTRAP_ADMIN_PASSWORD` yang tidak dibutuhkan runtime.
+
+### Sumber
+
+Service web memakai `env_file: .env.local`, sehingga seluruh secret deployment diteruskan ke proses Next.js.
+
+### Dampak
+
+Kompromi container web dapat membuka akses owner database dan password bootstrap.
+
+### Perbaikan
+
+Hapus `env_file` dari service web. Tambah image target dan service profile `db-tools` khusus migration/seed yang hanya berjalan secara one-off.
+
+### Verifikasi
+
+Runtime web hanya menerima password role `honda_runtime`; migration dan reset password admin tetap tersedia melalui `db-tools`.
+

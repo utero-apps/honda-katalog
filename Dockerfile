@@ -10,6 +10,11 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
+FROM deps AS db-tools
+WORKDIR /app
+COPY scripts ./scripts
+COPY db ./db
+
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app

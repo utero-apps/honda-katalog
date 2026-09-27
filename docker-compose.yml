@@ -34,12 +34,27 @@ services:
       - DATABASE_NAME=${POSTGRES_DB:-honda_workshop}
       - DATABASE_USER=honda_runtime
       - DATABASE_PASSWORD=${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD is required}
-    env_file:
-      - .env.local
     networks:
       - honda-internal
       - carubra-network
       - maskhar-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  db-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: db-tools
+    profiles: ["tools"]
+    environment:
+      - POSTGRES_HOST=honda-postgres
+      - POSTGRES_PORT=5432
+    env_file:
+      - .env.local
+    networks:
+      - honda-internal
     depends_on:
       postgres:
         condition: service_healthy
