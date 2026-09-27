@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
+import { log } from "@/server/log";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public fields?: Record<string, string[]>) {
@@ -18,7 +19,7 @@ export function fail(error: unknown) {
   if (error instanceof ZodError) {
     return NextResponse.json({ data: null, error: { code: "VALIDATION_ERROR", message: "Input tidak valid", fields: error.flatten().fieldErrors } }, { status: 422 });
   }
-  console.error("Unhandled API error", error);
+  log("api.unhandled_error", { error: error instanceof Error ? error.name : "unknown" });
   return NextResponse.json({ data: null, error: { code: "INTERNAL_ERROR", message: "Terjadi gangguan pada server" } }, { status: 500 });
 }
 
