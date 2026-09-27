@@ -6,6 +6,11 @@ const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 if (!password) throw new Error("BOOTSTRAP_ADMIN_PASSWORD wajib diisi");
 let cookie = "";
 
+const anonymous = await fetch(`${baseUrl}/api/v1/catalog/products`);
+if (anonymous.status !== 401) throw new Error("Anonymous access tidak ditolak");
+const crossOriginLogin = await fetch(`${baseUrl}/api/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json", origin: "https://attacker.invalid" }, body: JSON.stringify({ email, password }) });
+if (crossOriginLogin.status !== 403) throw new Error("Cross-origin mutation tidak ditolak");
+
 async function request(path, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { "content-type": "application/json", origin: baseUrl, ...(cookie ? { cookie } : {}), ...init.headers } });
   const text = await response.text();
@@ -37,7 +42,10 @@ const purchaseOrder = (await request("/api/v1/business/purchase-orders", { metho
 await request(`/api/v1/business/purchase-orders/${purchaseOrder.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "submitted" }) });
 await request(`/api/v1/business/purchase-orders/${purchaseOrder.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "approved" }) });
 const warehouses = (await request("/api/v1/operations/warehouses")).body.data;
-await request("/api/v1/business/receipts", { method: "POST", body: JSON.stringify({ receiptNumber: `GR-${suffix}`, purchaseOrderId: purchaseOrder.id, warehouseId: warehouses[0].id, idempotencyKey: `receipt-${suffix}`, items: [{ purchaseOrderItemId: purchaseOrder.items[0].id, quantity: 5, unitCost: 7000 }] }) });
+const receiptPayload = { receiptNumber: `GR-${suffix}`, purchaseOrderId: purchaseOrder.id, warehouseId: warehouses[0].id, idempotencyKey: `receipt-${suffix}`, items: [{ purchaseOrderItemId: purchaseOrder.items[0].id, quantity: 5, unitCost: 7000 }] };
+const receipt = (await request("/api/v1/business/receipts", { method: "POST", body: JSON.stringify(receiptPayload) })).body.data;
+const replayedReceipt = (await request("/api/v1/business/receipts", { method: "POST", body: JSON.stringify(receiptPayload) })).body.data;
+if (receipt.id !== replayedReceipt.id) throw new Error("Idempotency receipt gagal");
 const reservedPart = (await request(`/api/v1/operations/service-orders/${order.id}/details`, { method: "POST", body: JSON.stringify({ action: "reserve_part", warehouseId: warehouses[0].id, productId: product.id, quantity: 1, unitPrice: 10000, unitCost: 7000 }) })).body.data;
 await request(`/api/v1/operations/service-orders/${order.id}/details`, { method: "POST", body: JSON.stringify({ action: "consume_part", partId: reservedPart.id, idempotencyKey: `service-usage-${suffix}` }) });
 await request("/api/v1/business/customer-invoices", { method: "POST", body: JSON.stringify({ invoiceNumber: `CI-${suffix}`, serviceOrderId: order.id, discount: 0, tax: 0 }) });
@@ -51,4 +59,7 @@ const exported = await fetch(`${baseUrl}/api/v1/intelligence/export`, { headers:
 if (!dashboard.body.data || !metrics.body.data || !exported.ok || metrics.body.data.monthlyCogs < 7000 || metrics.body.data.monthlyGrossProfit <= 0) throw new Error("Reporting E2E gagal");
 const audit = await request("/api/v1/audit");
 if (!audit.body.data.some((event) => event.entityId === product.id)) throw new Error("Audit product tidak ditemukan");
+await request("/api/v1/auth/logout", { method: "POST", body: "{}" });
+const revokedSession = await fetch(`${baseUrl}/api/v1/auth/me`, { headers: { cookie } });
+if (revokedSession.status !== 401) throw new Error("Session revoke gagal");
 console.log(JSON.stringify({ verified: true, productId: product.id, customerId: customer.id, serviceOrderId: order.id }));
