@@ -13,7 +13,8 @@
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
     "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
     "db:restore": "node --env-file-if-exists=.env.local scripts/restore.mjs",
-    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-db.mjs"
+    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-db.mjs",
+    "e2e:api": "node --env-file-if-exists=.env.local scripts/e2e-api.mjs"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",
