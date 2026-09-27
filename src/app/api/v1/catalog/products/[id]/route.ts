@@ -6,6 +6,7 @@ import { getProduct, updateProduct } from "@/features/catalog/service";
 import { requirePermission } from "@/server/auth/permissions";
 import { withActorTransaction } from "@/server/db";
 import { assertSameOrigin, fail, ok, parseBody } from "@/server/http";
+import { recordAudit } from "@/server/audit";
 
 const idSchema = z.uuid();
 
@@ -28,7 +29,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const user = await requirePermission(request, requestId, "catalog.write");
     const id = idSchema.parse((await context.params).id);
     const input = await parseBody(request, productUpdateSchema);
-    const product = await withActorTransaction({ userId: user.id, role: user.role, requestId }, (client) => updateProduct(client, user.id, id, input));
+    const product = await withActorTransaction({ userId: user.id, role: user.role, requestId }, async (client) => {
+      const before = await getProduct(client, id);
+      const updated = await updateProduct(client, user.id, id, input);
+      await recordAudit(client, { actorId: user.id, requestId, action: "product.update", entityType: "product", entityId: id, before, after: updated });
+      return updated;
+    });
     return ok(product, { requestId });
   } catch (error) {
     return fail(error);

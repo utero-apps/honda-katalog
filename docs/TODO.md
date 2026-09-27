@@ -14,7 +14,7 @@
 - [x] DOC-004 [P0] Architecture.
 - [x] DOC-005 [P0] Agent Operating Model.
 - [x] DOC-006 [P0] Master TODO.
-- [ ] DOC-007 [P1] README aktual.
+- [x] DOC-007 [P1] README aktual.
 - [x] DOC-008 [P1] Backup, restore, incident, release runbook.
 
 ## 1. Foundation

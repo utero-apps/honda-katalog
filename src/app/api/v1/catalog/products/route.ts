@@ -5,6 +5,7 @@ import { createProduct, listProducts } from "@/features/catalog/service";
 import { requirePermission } from "@/server/auth/permissions";
 import { withActorTransaction } from "@/server/db";
 import { assertSameOrigin, fail, ok, parseBody } from "@/server/http";
+import { recordAudit } from "@/server/audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,11 @@ export async function POST(request: NextRequest) {
     const requestId = crypto.randomUUID();
     const user = await requirePermission(request, requestId, "catalog.write");
     const input = await parseBody(request, productInputSchema);
-    const product = await withActorTransaction({ userId: user.id, role: user.role, requestId }, (client) => createProduct(client, user.id, input));
+    const product = await withActorTransaction({ userId: user.id, role: user.role, requestId }, async (client) => {
+      const created = await createProduct(client, user.id, input);
+      await recordAudit(client, { actorId: user.id, requestId, action: "product.create", entityType: "product", entityId: created.id, after: created });
+      return created;
+    });
     return ok(product, { requestId });
   } catch (error) {
     return fail(error);
