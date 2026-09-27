@@ -245,3 +245,30 @@ Gunakan ekstensi `vitest.config.mts`.
 ### Verifikasi
 
 `npm test` selesai tanpa warning config loader.
+
+## BUG-20260927-010 - Lifecycle scanner melanggar aturan React 19
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Catalog scanner
+- Severity: Medium
+
+### Gejala
+
+`npm run lint` menolak mutasi ref saat render dan penggunaan nama lokal `module` pada dynamic import scanner.
+
+### Sumber
+
+Callback scanner distabilkan dengan menulis `ref.current` di fase render, sedangkan aturan React 19 melarang akses ref tersebut. Nama `module` juga dicadangkan aturan Next.js.
+
+### Dampak
+
+Quality gate gagal dan lifecycle kamera berisiko memakai callback usang.
+
+### Perbaikan
+
+Gunakan callback stabil melalui `useCallback`, masukkan callback ke dependency effect scanner, dan ganti nama hasil import menjadi `scannerLibrary`.
+
+### Verifikasi
+
+`npm run lint`, typecheck, dan test selesai tanpa error scanner.

@@ -62,13 +62,13 @@
 - [x] CAT-001 [P0] Product/category/model/compatibility services.
 - [x] CAT-002 [P0] Paginated DB-side search/filter.
 - [x] CAT-003 [P0] Product CRUD validation/permission.
-- [ ] CAT-004 [P1] Barcode CRUD/scanner.
+- [x] CAT-004 [P1] Barcode CRUD/scanner.
 - [x] CAT-005 [P1] HET, HPP, unit, minimum stock, lifecycle.
 - [x] CAT-006 [P1] Normalisasi category/compatibility.
 - [x] CAT-007 [P1] Accessible responsive catalog UI.
-- [ ] CAT-008 [P0] CSV preview/validation/dedup/report.
+- [x] CAT-008 [P0] CSV preview/validation/dedup/report.
 - [ ] CAT-009 [P0] Supabase/current-data export/import.
-- [ ] CAT-010 [P0] Reconcile count, duplicate, price, search.
+- [x] CAT-010 [P0] Reconcile count, duplicate, price, search.
 - [ ] CAT-011 [P1] Catalog unit/integration/API/E2E tests.
 
 ## 5. Phase 2 - Operational

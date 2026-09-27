@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { CatalogTools } from "@/components/CatalogTools";
 
 interface User { id: string; email: string; displayName: string; role: string }
 interface Reference { id: string; name: string }
@@ -35,6 +36,8 @@ export default function Home() {
     const result = await api<Product[]>(`/api/v1/catalog/products?query=${encodeURIComponent(search)}&pageSize=100`);
     setProducts(result.data);
   }, [query]);
+  const handleBarcode = useCallback((value: string) => { setQuery(value); void loadProducts(value); }, [loadProducts]);
+  const handleImported = useCallback(() => loadProducts(""), [loadProducts]);
 
   const bootstrap = useCallback(async () => {
     try {
@@ -129,6 +132,7 @@ export default function Home() {
           </form>
           <button onClick={() => { setEditing(null); setShowForm(true); }} className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white">Tambah Produk</button>
         </div>
+        <CatalogTools onBarcode={handleBarcode} onImported={handleImported} onMessage={setMessage} />
         {message && <p className="mt-4 rounded-xl bg-white p-3 text-sm font-semibold text-slate-700">{message}</p>}
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => <article key={product.id} className="rounded-2xl bg-white p-5 shadow-sm">
