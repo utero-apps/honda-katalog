@@ -96,7 +96,7 @@
 - [ ] P3-007 [P1] Income/expense.
 - [ ] P3-008 [P1] HPP/COGS/profit/margin.
 - [ ] P3-009 [P1] Mechanic fee.
-- [ ] P3-010 [P0] Reversal posted records.
+- [x] P3-010 [P0] Reversal posted records.
 - [ ] P3-011 [P1] Reconciliation/E2E tests.
 
 ## 7. Phase 4 - Intelligence
