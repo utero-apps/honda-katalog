@@ -55,7 +55,7 @@
 - [x] SEC-006 [P0] Origin/CSRF protection.
 - [ ] SEC-007 [P1] Rate limit, rotation, expiry, revocation.
 - [x] SEC-008 [P1] Audit events.
-- [ ] SEC-009 [P0] Test anonymous, IDOR, escalation, injection, replay.
+- [x] SEC-009 [P0] Test anonymous, IDOR, escalation, injection, replay.
 - [x] SEC-010 [P0] Hapus raw backend error dari response.
 
 ## 4. Phase 1 - Catalog

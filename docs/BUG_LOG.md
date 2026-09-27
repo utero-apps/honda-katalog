@@ -353,3 +353,30 @@ Hilangkan referensi kolom yang tidak ada dan pertahankan filter status invoice p
 ### Verifikasi
 
 E2E Phase 1–4 dijalankan ulang setelah build baru; metrik memverifikasi COGS dan gross profit bernilai benar.
+
+## BUG-20260927-014 - Fixture security expiry melanggar constraint session
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Security test
+- Severity: Low
+
+### Gejala
+
+`npm run security:api` gagal saat memaksa `expires_at` ke masa lalu karena check constraint session mensyaratkan expiry sesudah waktu pembuatan.
+
+### Sumber
+
+Fixture hanya mengubah `expires_at`, sehingga menghasilkan state database yang memang dilarang schema.
+
+### Dampak
+
+Pengujian penolakan session kedaluwarsa tidak dapat mencapai request HTTP.
+
+### Perbaikan
+
+Geser `created_at` dan `expires_at` bersama-sama ke masa lalu dengan urutan waktu tetap valid.
+
+### Verifikasi
+
+Security API matrix dijalankan ulang dan session kedaluwarsa ditolak HTTP 401.
