@@ -380,3 +380,219 @@ Geser `created_at` dan `expires_at` bersama-sama ke masa lalu dengan urutan wakt
 ### Verifikasi
 
 Security API matrix dijalankan ulang dan session kedaluwarsa ditolak HTTP 401.
+## BUG-20260927-015 - Docker Compose tidak membaca .env.local otomatis
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Deployment configuration
+- Severity: Low
+
+### Gejala
+
+docker compose up menolak konfigurasi karena POSTGRES_PASSWORD dan POSTGRES_RUNTIME_PASSWORD dianggap kosong.
+
+### Sumber
+
+Docker Compose membaca .env secara otomatis, bukan .env.local. Percobaan replace file dalam satu patch juga meninggalkan .env.local terhapus.
+
+### Dampak
+
+Container PostgreSQL dan aplikasi belum dapat dibuat.
+
+### Perbaikan
+
+Buat ulang .env.local dan selalu jalankan Compose dengan --env-file .env.local.
+
+### Verifikasi
+
+Compose berhasil membangun dan menjalankan service PostgreSQL serta aplikasi.
+
+## BUG-20260927-016 - Port PostgreSQL host `55432` tidak tersedia
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Docker networking
+- Severity: Low
+
+### Gejala
+
+Docker menolak binding `127.0.0.1:55432` saat service PostgreSQL dimulai.
+
+### Sumber
+
+Port host tidak tersedia untuk Docker Desktop.
+
+### Dampak
+
+Database container belum dapat berjalan.
+
+### Perbaikan
+
+Pindahkan port host PostgreSQL ke `25432`; jaringan internal Docker tetap memakai port `5432`.
+
+### Verifikasi
+
+PostgreSQL berjalan dan dipublikasikan pada `127.0.0.1:25432`.
+
+## BUG-20260927-017 - Container migrasi memakai image aplikasi lama
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Database deployment
+- Severity: Low
+
+### Gejala
+
+Container one-off menolak `npm run db:migrate` karena script tidak tersedia.
+
+### Sumber
+
+Service PostgreSQL dijalankan lebih dahulu tanpa membangun ulang image aplikasi; Docker memakai image lama sebelum backend PostgreSQL dibuat.
+
+### Dampak
+
+Migration SQL belum diterapkan.
+
+### Perbaikan
+
+Jalankan migration dan seed dari host terhadap PostgreSQL pada `127.0.0.1:25432`, lalu build image aplikasi terbaru.
+
+### Verifikasi
+
+Seluruh migration tercatat, seed admin berhasil, dan aplikasi baru menjadi healthy.
+
+## BUG-20260927-018 - PostgreSQL host port menolak koneksi setelah startup
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Docker networking
+- Severity: High
+
+### Gejala
+
+`npm run db:migrate` mengembalikan `ECONNREFUSED 127.0.0.1:25432`.
+
+### Sumber
+
+Docker menerima `HostConfig.PortBindings`, tetapi `NetworkSettings.Ports` kosong sehingga port tidak benar-benar dipublikasikan oleh Docker Desktop.
+
+### Dampak
+
+Migration, seed, dan startup aplikasi baru tertahan.
+
+### Perbaikan
+
+Hapus publikasi port PostgreSQL dan jalankan migration/seed memakai helper Node pada network internal Compose. Database tetap tidak terekspos ke host.
+
+### Verifikasi
+
+Migration, seed, dan verifier database berhasil melalui network internal; aplikasi terhubung ke service `postgres:5432`.
+
+## BUG-20260927-019 - Image standalone tidak membawa script operasi database
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Docker deployment
+- Severity: Low
+
+### Gejala
+
+Container aplikasi production tidak menemukan `scripts/migrate.mjs`.
+
+### Sumber
+
+Dockerfile benar-benar hanya menyalin Next standalone runtime untuk meminimalkan image production.
+
+### Dampak
+
+Migration dan seed tidak dapat dijalankan memakai container aplikasi production.
+
+### Perbaikan
+
+Gunakan helper Node disposable di network internal Docker dengan script dan migration hanya-baca dari workspace.
+
+### Verifikasi
+
+Helper menerapkan migration, membuat admin, dan verifier database lulus sebelum aplikasi production dimulai.
+
+## BUG-20260927-020 - Helper migration gagal mengunduh driver PostgreSQL
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Database deployment
+- Severity: Low
+
+### Gejala
+
+Helper Node mengembalikan `EAI_AGAIN` saat mengunduh package `pg` dari npm registry.
+
+### Sumber
+
+DNS sementara dari container helper tidak dapat menjangkau registry eksternal.
+
+### Dampak
+
+Migration belum berjalan meskipun PostgreSQL sudah healthy.
+
+### Perbaikan
+
+Gunakan dependency `pg` yang sudah dibundel dalam image production dan mount hanya folder script/migration.
+
+### Verifikasi
+
+Migration, seed, dan verifier selesai tanpa download dependency tambahan.
+
+## BUG-20260927-021 - Environment helper membaca literal hashtable PowerShell
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Database deployment
+- Severity: Low
+
+### Gejala
+
+PostgreSQL menolak login untuk user literal `System.Collections.Hashtable.POSTGRES_USER`.
+
+### Sumber
+
+PowerShell meneruskan ekspresi hashtable sebagai teks literal ketika nilai diberikan sebagai argumen terpisah setelah `-e`.
+
+### Dampak
+
+Helper belum dapat membuka koneksi database.
+
+### Perbaikan
+
+Bentuk setiap environment sebagai satu string `KEY=VALUE` sebelum diteruskan ke Docker.
+
+### Verifikasi
+
+Migration, seed admin, dan verifier lulus.
+
+## BUG-20260927-022 - Password role runtime tidak sinkron setelah bootstrap
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Database deployment
+- Severity: High
+
+### Gejala
+
+Aplikasi mengembalikan health HTTP 500 dan PostgreSQL menolak autentikasi `honda_runtime`.
+
+### Sumber
+
+Container aplikasi bergabung dengan beberapa Docker network. Host generik `postgres` dapat resolve ke database lain pada network eksternal, sehingga credential `honda_runtime` valid ditolak oleh server yang salah.
+
+### Dampak
+
+Aplikasi tidak dapat mengakses database meskipun migration dan seed selesai.
+
+### Perbaikan
+
+Gunakan hostname container unik `honda-postgres`, sinkronkan secret runtime, lalu recreate aplikasi.
+
+### Verifikasi
+
+Health endpoint mengembalikan `ok` dan login admin berhasil.
+
