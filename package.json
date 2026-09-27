@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs"
+    "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
+    "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
+    "db:restore": "node --env-file-if-exists=.env.local scripts/restore.mjs"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",

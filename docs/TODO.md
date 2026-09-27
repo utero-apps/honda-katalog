@@ -142,7 +142,7 @@
 - [ ] OPS-001 [P0] Production-safe Docker Compose.
 - [ ] OPS-002 [P0] PostgreSQL private dan web non-root.
 - [ ] OPS-003 [P1] CI, health/readiness, structured logs.
-- [ ] OPS-004 [P1] Backup/restore scripts dan verification.
+- [x] OPS-004 [P1] Backup/restore scripts dan verification.
 - [ ] REL-001 [P0] Tidak ada runtime Supabase reference.
 - [ ] REL-002 [P0] Main Phase 1-4 E2E pass.
 - [ ] REL-003 [P0] Docker smoke dan final security audit pass.
