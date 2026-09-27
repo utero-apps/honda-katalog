@@ -9,3 +9,5 @@ export function enforceRateLimit(key: string, limit = 10, windowMs = 60_000) {
   if (current.count >= limit) throw new ApiError(429, "RATE_LIMITED", "Terlalu banyak percobaan, coba lagi nanti");
   current.count += 1;
 }
+
+export function resetRateLimits() { attempts.clear(); }
