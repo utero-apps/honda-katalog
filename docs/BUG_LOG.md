@@ -326,3 +326,30 @@ Cast eksplisit parameter status ke `app.purchase_status` pada assignment dan ked
 ### Verifikasi
 
 Query parameterized direproduksi terhadap PostgreSQL runtime, lalu workflow E2E Phase 1–4 dijalankan ulang setelah build baru.
+
+## BUG-20260927-013 - Metrik COGS gagal pada schema invoice aktif
+
+- Tanggal: 27 September 2026
+- Status: Fixed and verified
+- Area: Intelligence metrics
+- Severity: High
+
+### Gejala
+
+E2E mengembalikan HTTP 500 saat memuat `GET /api/v1/intelligence/metrics` setelah metrik revenue/COGS ditambahkan.
+
+### Sumber
+
+Query mereferensikan `customer_invoices.reversed_at`, padahal pembalikan invoice direpresentasikan oleh nilai `status='reversed'`; hanya payment dan expense memiliki kolom `reversed_at`.
+
+### Dampak
+
+Dashboard profit/margin tidak dapat dipakai dan workflow E2E terhenti pada Fase 4.
+
+### Perbaikan
+
+Hilangkan referensi kolom yang tidak ada dan pertahankan filter status invoice posted/partially paid/paid.
+
+### Verifikasi
+
+E2E Phase 1–4 dijalankan ulang setelah build baru; metrik memverifikasi COGS dan gross profit bernilai benar.

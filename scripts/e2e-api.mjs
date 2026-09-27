@@ -38,6 +38,9 @@ await request(`/api/v1/business/purchase-orders/${purchaseOrder.id}/status`, { m
 await request(`/api/v1/business/purchase-orders/${purchaseOrder.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "approved" }) });
 const warehouses = (await request("/api/v1/operations/warehouses")).body.data;
 await request("/api/v1/business/receipts", { method: "POST", body: JSON.stringify({ receiptNumber: `GR-${suffix}`, purchaseOrderId: purchaseOrder.id, warehouseId: warehouses[0].id, idempotencyKey: `receipt-${suffix}`, items: [{ purchaseOrderItemId: purchaseOrder.items[0].id, quantity: 5, unitCost: 7000 }] }) });
+const reservedPart = (await request(`/api/v1/operations/service-orders/${order.id}/details`, { method: "POST", body: JSON.stringify({ action: "reserve_part", warehouseId: warehouses[0].id, productId: product.id, quantity: 1, unitPrice: 10000, unitCost: 7000 }) })).body.data;
+await request(`/api/v1/operations/service-orders/${order.id}/details`, { method: "POST", body: JSON.stringify({ action: "consume_part", partId: reservedPart.id, idempotencyKey: `service-usage-${suffix}` }) });
+await request("/api/v1/business/customer-invoices", { method: "POST", body: JSON.stringify({ invoiceNumber: `CI-${suffix}`, serviceOrderId: order.id, discount: 0, tax: 0 }) });
 const vendorInvoice = (await request("/api/v1/business/vendor-invoices", { method: "POST", body: JSON.stringify({ invoiceNumber: `VI-${suffix}`, vendorId: vendor.id, purchaseOrderId: purchaseOrder.id, total: 35000, issuedAt: "2026-09-27" }) })).body.data;
 await request("/api/v1/business/payments", { method: "POST", body: JSON.stringify({ paymentNumber: `PAY-${suffix}`, direction: "outgoing", vendorInvoiceId: vendorInvoice.id, amount: 35000, method: "transfer", idempotencyKey: `payment-${suffix}` }) });
 await request("/api/v1/intelligence/follow-ups", { method: "POST", body: JSON.stringify({ customerId: customer.id, serviceOrderId: order.id, dueAt: "2026-10-01T08:00:00.000Z", channel: "whatsapp" }) });
@@ -45,7 +48,7 @@ await request("/api/v1/intelligence/reminders", { method: "POST", body: JSON.str
 const dashboard = await request("/api/v1/intelligence/dashboard");
 const metrics = await request("/api/v1/intelligence/metrics");
 const exported = await fetch(`${baseUrl}/api/v1/intelligence/export`, { headers: { cookie } });
-if (!dashboard.body.data || !metrics.body.data || !exported.ok) throw new Error("Reporting E2E gagal");
+if (!dashboard.body.data || !metrics.body.data || !exported.ok || metrics.body.data.monthlyCogs < 7000 || metrics.body.data.monthlyGrossProfit <= 0) throw new Error("Reporting E2E gagal");
 const audit = await request("/api/v1/audit");
 if (!audit.body.data.some((event) => event.entityId === product.id)) throw new Error("Audit product tidak ditemukan");
 console.log(JSON.stringify({ verified: true, productId: product.id, customerId: customer.id, serviceOrderId: order.id }));

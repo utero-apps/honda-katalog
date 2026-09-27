@@ -95,7 +95,7 @@
 - [x] P3-005 [P1] Customer invoice dari Service Order.
 - [x] P3-006 [P1] Customer/vendor payment.
 - [x] P3-007 [P1] Income/expense.
-- [ ] P3-008 [P1] HPP/COGS/profit/margin.
+- [x] P3-008 [P1] HPP/COGS/profit/margin.
 - [x] P3-009 [P1] Mechanic fee.
 - [x] P3-010 [P0] Reversal posted records.
 - [x] P3-011 [P1] Reconciliation/E2E tests.
