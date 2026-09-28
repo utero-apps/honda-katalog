@@ -220,3 +220,14 @@
 - [x] INV6-005 [P0] Read model Purchase Order, receiving, dan stock opname.
 - [x] INV6-006 [P0] Dialog adjustment, Purchase Order, receiving, dan mulai opname.
 - [x] INV6-007 [P0] Unit/API tests, lint, typecheck, E2E inventory, dan Docker smoke.
+
+## 13. Page 7 - Purchasing & Vendor Management
+
+- [x] PUR7-001 [P0] Dashboard purchasing terpadu dengan filter periode dan KPI PO, receiving, nilai pembelian, hutang, serta pembayaran.
+- [x] PUR7-002 [P0] Riwayat procurement end-to-end dari PO, receiving, invoice vendor, hutang, sampai status pembayaran.
+- [x] PUR7-003 [P1] Top vendor, aging hutang, komposisi status pembayaran, dan process flow visual.
+- [x] PUR7-004 [P0] Purchase Order multi-item dengan validasi baris dan total.
+- [x] PUR7-005 [P0] Receiving parsial menampilkan ordered, diterima sebelumnya, sisa, kuantitas baru, dan biaya aktual.
+- [x] PUR7-006 [P0] Pembayaran vendor atomik: lock invoice, idempotency, partial/full status, dan penolakan overpayment.
+- [x] PUR7-007 [P1] Aksi vendor, invoice vendor, dan pembayaran tersedia langsung dari workspace purchasing.
+- [x] PUR7-008 [P0] Unit/API/E2E, lint, typecheck, build, migration verification, dan Docker smoke.

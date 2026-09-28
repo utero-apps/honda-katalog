@@ -20,7 +20,7 @@ describe("finance read models", () => {
     expect(payments).toContain('AS "reversedAt"');
     expect(payments).toContain('AS "reversalReason"');
     expect(payments).toContain("AS status");
-    expect(payments).toContain("amount:Number(amount)");
+    expect(payments).toMatch(/amount:\s*Number\(amount\)/);
   });
 
   it("keeps write permissions and idempotency on existing POST handlers", () => {

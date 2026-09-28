@@ -16,6 +16,7 @@
     "db:verify": "node --env-file-if-exists=.env.local scripts/verify-db.mjs",
     "e2e:api": "node --env-file-if-exists=.env.local scripts/e2e-api.mjs",
     "e2e:inventory": "node --env-file-if-exists=.env.local scripts/e2e-inventory.mjs",
+    "e2e:purchasing": "node --env-file-if-exists=.env.local scripts/e2e-purchasing.mjs",
     "security:api": "node --env-file-if-exists=.env.local scripts/security-api.mjs",
     "catalog:migrate": "node --env-file-if-exists=.env.local scripts/catalog-migrate.mjs",
     "test:catalog-migrate": "node --test scripts/catalog-migrate.test.mjs"
