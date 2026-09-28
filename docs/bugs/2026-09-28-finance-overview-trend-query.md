@@ -6,7 +6,7 @@ Endpoint `/api/v1/intelligence/finance-overview` mengembalikan HTTP 500 pada 28 
 
 ## Sumber
 
-CTE PostgreSQL memakai alias `day` sesudah cast `::date__. Alias tersebut menyebabkan parser PostgreSQL gagal pada query `generate_series`.
+CTE PostgreSQL memakai alias `day` sesudah cast `::date`. Alias tersebut menyebabkan parser PostgreSQL gagal pada query `generate_series`.
 
 ## Perbaikan
 
