@@ -20,3 +20,15 @@ Next.js 16 modular monolith dengan backend Route Handler milik sendiri, PostgreS
 - Runbook: `docs/RUNBOOK.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Delivery TODO: `docs/TODO.md`
+
+## Struktur Proyek
+
+- `src/`: aplikasi, komponen, fitur, API, dan backend.
+- `db/migrations/`: migration PostgreSQL aktif.
+- `db/legacy/supabase/`: arsip SQL implementasi Supabase lama; bukan runtime aktif.
+- `data/catalog/`: sumber data katalog untuk proses import atau migrasi.
+- `scripts/`: migration, seed, backup, restore, E2E, dan security tooling.
+- `docs/`: PDR, SDD, arsitektur, design system, runbook, audit, dan TODO.
+- `public/`: aset statis aplikasi.
+
+File konfigurasi Next.js, TypeScript, npm, ESLint, Vitest, Docker, Git, dan agent tetap berada di root karena toolchain mensyaratkan lokasi atau nama tersebut.
