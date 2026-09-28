@@ -41,7 +41,19 @@ function cameraErrorMessage(reason: unknown) {
   return detail ? `Scanner gagal membuka kamera: ${detail}` : "Scanner gagal membuka kamera. Gunakan scan dari foto atau input manual.";
 }
 
-function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void; onClose: () => void }) {
+interface BarcodeScannerDialogProps {
+  onDetected: (value: string) => void;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+}
+
+export function BarcodeScannerDialog({
+  onDetected,
+  onClose,
+  title = "Scan barcode",
+  description = "Posisikan seluruh garis barcode di dalam bingkai. Jaga jarak 15–30 cm dan hindari pantulan cahaya.",
+}: BarcodeScannerDialogProps) {
   const rawId = useId();
   const scannerId = `scanner-${rawId.replaceAll(":", "")}`;
   const imageInputId = `${scannerId}-image`;
@@ -124,8 +136,8 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
     <AccessibleDialog labelledBy={titleId} onClose={onClose} showCloseButton closeLabel="Tutup pemindai barcode" panelClassName="max-w-lg">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">Pemindai Produk</p>
-        <h2 id={titleId} className="mt-1 text-xl font-black text-slate-950">Scan barcode</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Posisikan seluruh garis barcode di dalam bingkai. Jaga jarak 15–30 cm dan hindari pantulan cahaya.</p>
+        <h2 id={titleId} className="mt-1 text-xl font-black text-slate-950">{title}</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
       </div>
       <div className="relative mt-5 min-h-64 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-inner">
         <div id={scannerId} className="min-h-64" />
@@ -137,7 +149,7 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
         <label htmlFor={imageInputId} className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 sm:col-span-2">Scan dari foto</label>
         <form onSubmit={submitManual} className="flex gap-2 sm:col-span-2">
           <label htmlFor={`${scannerId}-manual`} className="sr-only">Masukkan barcode manual</label>
-          <input id={`${scannerId}-manual`} value={manualValue} onChange={(event) => setManualValue(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ketik angka barcode" className="dashboard-input min-w-0 flex-1 rounded-xl border px-3 py-2" />
+          <input id={`${scannerId}-manual`} value={manualValue} onChange={(event) => setManualValue(event.target.value)} autoComplete="off" placeholder="Ketik kode barcode" className="dashboard-input min-w-0 flex-1 rounded-xl border px-3 py-2" />
           <button type="submit" className="min-h-11 rounded-xl bg-blue-900 px-4 text-sm font-bold text-white transition hover:bg-blue-800">Gunakan</button>
         </form>
       </div>
@@ -233,6 +245,6 @@ export function CatalogTools({ onBarcode, onImported, onMessage }: Props) {
         {summary && summary.invalid > 0 && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">Import dinonaktifkan karena masih ada {summary.invalid} baris invalid. Perbaiki CSV lalu preview ulang.</p>}
       </div>
     </section>
-    {scannerOpen && <Scanner onDetected={onBarcode} onClose={closeScanner} />}
+    {scannerOpen && <BarcodeScannerDialog onDetected={onBarcode} onClose={closeScanner} />}
   </>;
 }
