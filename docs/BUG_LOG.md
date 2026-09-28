@@ -919,3 +919,26 @@ Tambah route `/service/reception` dengan wizard lima langkah, pencarian customer
 ### Verifikasi
 
 Typecheck, lint, 66 regression test, 4 Service Reception integration test, production build, migration PostgreSQL `007` dan `008`, forced RLS 45 tabel, Docker rebuild, health/page smoke HTTP 200, API E2E lintas fase, dan security matrix reception lulus.
+
+## BUG-20260928-035 - Seed menambah model kendaraan duplikat
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Katalog kendaraan, seed PostgreSQL
+- Severity: High
+
+### Gejala
+
+Model seperti Vario 150 muncul empat kali dalam daftar aktif setelah seed dijalankan berulang.
+
+### Sumber
+
+Constraint UNIQUE (brand, name, year_start) mengizinkan lebih dari satu nilai NULL pada year_start. Seed memakai ON CONFLICT DO NOTHING sehingga tidak melihat konflik untuk model tanpa tahun.
+
+### Perbaikan
+
+Migration 009 memindahkan relasi product dan kendaraan ke record model tertua, menghapus duplikat, lalu memasang UNIQUE NULLS NOT DISTINCT. Seed memakai conflict target eksplisit dan mengaktifkan kembali record yang sudah ada.
+
+### Verifikasi
+
+Audit database sebelum perbaikan menemukan 10 kelompok model dengan masing-masing empat duplikat. Setelah migration dan seed ulang, setiap model aktif hanya satu record dan constraint baru menolak insert ulang dengan year_start NULL.

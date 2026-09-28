@@ -47,6 +47,7 @@
 - [x] SR-010 [P1] Dashboard/POS navigation menuju penerimaan service.
 - [x] SR-011 [P0] Unit/API/E2E/RLS/IDOR/origin/replay/rollback tests.
 - [x] SR-012 [P0] Migration, production build, Docker smoke, dan route verification.
+- [x] SR-013 [P0] Deduplikasi model kendaraan dan unique constraint untuk year NULL.
 
 ## 1. Foundation
 
