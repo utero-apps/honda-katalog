@@ -90,12 +90,6 @@ export function ServiceOrdersWorkspace() {
     <section className="mx-auto max-w-7xl" aria-labelledby="service-orders-heading">
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-xl">
         <div className="flex flex-col justify-between gap-4 px-5 py-5 sm:flex-row sm:items-end sm:px-7 sm:py-6">
-          <Link
-            href="/business"
-            className="text-sm font-bold text-blue-700 hover:text-blue-900"
-          >
-            ← Modul Bisnis
-          </Link>
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-black uppercase tracking-[.18em] text-red-400">
