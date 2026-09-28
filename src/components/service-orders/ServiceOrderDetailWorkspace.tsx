@@ -196,6 +196,12 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
     order.customerName ?? order.customer?.name ?? "Pelanggan";
   const plate = order.plateNumber ?? order.vehicle?.plateNumber ?? "-";
   const model = order.model ?? order.vehicle?.model ?? "Model belum dicatat";
+  const diagnosisText =
+    order.diagnosis?.findings ?? order.diagnosis?.notes ?? "";
+  const diagnosisLines = diagnosisText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   const hasDiagnosis = Boolean(
     order.diagnosis?.findings || order.diagnosis?.notes,
   );
@@ -342,11 +348,20 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 <p className="text-xs font-black uppercase tracking-wide text-slate-500">
                   Diagnosis
                 </p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {order.diagnosis?.findings ||
-                    order.diagnosis?.notes ||
-                    "Belum ada hasil diagnosis."}
-                </p>
+                {diagnosisLines.length ? (
+                  <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-700">
+                    {diagnosisLines.map((line, index) => (
+                      <li key={`${index}-${line}`} className="flex gap-2">
+                        <span aria-hidden="true">-</span>
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    Belum ada hasil diagnosis.
+                  </p>
+                )}
               </div>
               <DiagnosisForm
                 busy={busy === "diagnosis"}
@@ -546,7 +561,7 @@ function DiagnosisForm({
           required
           minLength={3}
           className="mt-2 min-h-24 w-full rounded-xl border border-slate-300 p-3 text-sm font-medium normal-case text-slate-900"
-          placeholder="Temuan teknisi dan tindakan yang disarankan"
+          placeholder={"Tulis satu temuan setiap baris, misalnya:\nBusi kotor\nOli hampir habis"}
         />
       </label>
       <button

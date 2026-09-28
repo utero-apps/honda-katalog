@@ -909,6 +909,11 @@ export function ServiceReceptionWorkspace({
                       name="plateNumber"
                       required
                       minLength={2}
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      onInput={(event) => {
+                        event.currentTarget.value = event.currentTarget.value.toUpperCase();
+                      }}
                       className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base font-bold uppercase outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                     />
                   </Field>

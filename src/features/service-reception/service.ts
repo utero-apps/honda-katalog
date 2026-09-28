@@ -72,9 +72,10 @@ export async function createReceptionCustomer(client: PoolClient, actor: Actor, 
 }
 
 export async function createReceptionVehicle(client: PoolClient, actor: Actor, input: CreateVehicleInput) {
+  const plateNumber = input.plateNumber.toUpperCase();
   const customer = await client.query("SELECT 1 FROM app.customers WHERE id=$1 AND is_active=true", [input.customerId]);
   if (!customer.rowCount) throw new ApiError(404, "CUSTOMER_NOT_FOUND", "Pelanggan aktif tidak ditemukan");
-  const duplicate = await client.query("SELECT 1 FROM app.customer_vehicles WHERE canonical_plate=$1", [canonicalPlate(input.plateNumber)]);
+  const duplicate = await client.query("SELECT 1 FROM app.customer_vehicles WHERE canonical_plate=$1", [canonicalPlate(plateNumber)]);
   if (duplicate.rowCount) throw new ApiError(409, "VEHICLE_PLATE_EXISTS", "Nomor polisi sudah terdaftar");
   if (input.vehicleModelId) {
     const model = await client.query("SELECT 1 FROM app.vehicle_models WHERE id=$1 AND is_active=true", [input.vehicleModelId]);
@@ -86,7 +87,7 @@ export async function createReceptionVehicle(client: PoolClient, actor: Actor, i
       `INSERT INTO app.customer_vehicles(customer_id,vehicle_model_id,plate_number,year,vin,engine_number,odometer,image_url)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING id,customer_id AS "customerId",vehicle_model_id AS "vehicleModelId",plate_number AS "plateNumber",year,vin,engine_number AS "engineNumber",odometer::text,image_url AS "imageUrl"`,
-      [input.customerId, input.vehicleModelId ?? null, input.plateNumber, input.year ?? null, input.vin ?? null, input.engineNumber ?? null, input.odometer, input.imageUrl ?? null],
+      [input.customerId, input.vehicleModelId ?? null, plateNumber, input.year ?? null, input.vin ?? null, input.engineNumber ?? null, input.odometer, input.imageUrl ?? null],
     )).rows[0];
   } catch (error) {
     if (isUniqueViolation(error)) throw new ApiError(409, "VEHICLE_PLATE_EXISTS", "Nomor polisi sudah terdaftar");
