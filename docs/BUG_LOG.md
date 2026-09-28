@@ -703,3 +703,30 @@ Tambah route `/`, `/catalog`, dan `/business`. Ubah sidebar menjadi `next/link`,
 ### Verifikasi
 
 `npm run typecheck`, `npm run lint`, `npm test` (23 test), dan image production Docker lulus. Endpoint `/`, `/catalog`, `/business`, dan `/api/health` mengembalikan HTTP 200.
+
+## BUG-20260928-027 - Kamera scanner aktif tetapi barcode produk tidak terbaca
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Catalog barcode scanner
+- Severity: High
+
+### Gejala
+
+Dialog scanner berhasil menampilkan kamera, tetapi barcode yang diarahkan ke kamera tidak menghasilkan pencarian katalog.
+
+### Sumber
+
+Scanner memakai area baca tetap 250×100 piksel, hanya meminta kamera berdasarkan facing mode, dan tidak menyediakan fallback saat webcam sulit fokus. Format barcode produk juga tidak dikonfigurasi secara eksplisit.
+
+### Dampak
+
+Pencarian cepat lewat barcode tidak dapat dipakai pada kamera laptop atau kondisi pencahayaan dan fokus yang kurang ideal.
+
+### Perbaikan
+
+Aktifkan format EAN, UPC, Code, ITF, Codabar, QR, dan Data Matrix secara eksplisit; prioritaskan kamera belakang; perluas area baca adaptif; naikkan frekuensi pemindaian; tambahkan scan dari foto dan input kode manual.
+
+### Verifikasi
+
+Typecheck, lint, regression test scanner, build production Docker, endpoint health, dan halaman katalog lulus. Pembacaan kamera fisik tetap bergantung pada fokus dan kualitas webcam; fallback foto serta input manual tersedia.

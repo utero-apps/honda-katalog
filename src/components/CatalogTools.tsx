@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 
 import { AccessibleDialog } from "./AccessibleDialog";
@@ -32,11 +32,21 @@ function Spinner() {
 function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void; onClose: () => void }) {
   const rawId = useId();
   const scannerId = `scanner-${rawId.replaceAll(":", "")}`;
+  const imageInputId = `${scannerId}-image`;
   const titleId = `${scannerId}-title`;
   const scanner = useRef<Html5Qrcode | null>(null);
   const detected = useRef(false);
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(true);
+  const [manualValue, setManualValue] = useState("");
+
+  const finish = useCallback((value: string) => {
+    const normalized = value.trim();
+    if (!normalized || detected.current) return;
+    detected.current = true;
+    onDetected(normalized);
+    onClose();
+  }, [onClose, onDetected]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,17 +54,27 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
       try {
         const scannerLibrary = await import("html5-qrcode");
         if (cancelled) return;
-        const instance = new scannerLibrary.Html5Qrcode(scannerId);
+        const formats = scannerLibrary.Html5QrcodeSupportedFormats;
+        const instance = new scannerLibrary.Html5Qrcode(scannerId, {
+          formatsToSupport: [formats.EAN_13, formats.EAN_8, formats.UPC_A, formats.UPC_E, formats.CODE_128, formats.CODE_39, formats.CODE_93, formats.ITF, formats.CODABAR, formats.QR_CODE, formats.DATA_MATRIX],
+          useBarCodeDetectorIfSupported: true,
+          verbose: false,
+        });
         scanner.current = instance;
+        const cameras = await scannerLibrary.Html5Qrcode.getCameras();
+        const preferredCamera = cameras.find((camera) => /(back|rear|environment|belakang)/i.test(camera.label));
         await instance.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 100 } },
-          (value) => {
-            if (detected.current) return;
-            detected.current = true;
-            onDetected(value);
-            onClose();
+          preferredCamera?.id ?? { facingMode: { ideal: "environment" } },
+          {
+            fps: 20,
+            aspectRatio: 16 / 9,
+            disableFlip: false,
+            qrbox: (width, height) => ({
+              width: Math.max(180, Math.min(width - 24, Math.floor(width * 0.92))),
+              height: Math.max(100, Math.min(height - 24, Math.floor(height * 0.42))),
+            }),
           },
+          finish,
           () => undefined,
         );
         if (!cancelled) setStarting(false);
@@ -72,20 +92,54 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
       scanner.current = null;
       if (active?.isScanning) void active.stop().catch(() => undefined);
     };
-  }, [onClose, onDetected, scannerId]);
+  }, [finish, scannerId]);
+
+  async function scanImage(file?: File) {
+    if (!file || detected.current) return;
+    setError("");
+    setStarting(true);
+    try {
+      const active = scanner.current;
+      if (!active) throw new Error("Scanner belum siap");
+      if (active.isScanning) await active.stop();
+      finish(await active.scanFile(file, false));
+    } catch {
+      setError("Barcode pada foto belum terbaca. Pastikan gambar tajam, terang, dan seluruh garis barcode terlihat.");
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  function submitManual(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!manualValue.trim()) {
+      setError("Masukkan angka atau kode yang tercetak di bawah barcode.");
+      return;
+    }
+    finish(manualValue);
+  }
 
   return (
     <AccessibleDialog labelledBy={titleId} onClose={onClose} showCloseButton closeLabel="Tutup pemindai barcode" panelClassName="max-w-lg">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">Pemindai Produk</p>
         <h2 id={titleId} className="mt-1 text-xl font-black text-slate-950">Scan barcode</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Arahkan barcode ke area kamera. Hasil akan langsung mengisi pencarian katalog.</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Posisikan seluruh garis barcode di dalam bingkai. Jaga jarak 15–30 cm dan hindari pantulan cahaya.</p>
       </div>
       <div className="relative mt-5 min-h-64 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-inner">
         <div id={scannerId} className="min-h-64" />
         {starting && <div className="absolute inset-0 grid place-items-center bg-slate-950 text-sm font-semibold text-white" role="status"><span className="flex items-center gap-2"><Spinner /> Menyiapkan kamera...</span></div>}
       </div>
       {error && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert">{error}</p>}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <input id={imageInputId} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(event) => void scanImage(event.target.files?.[0])} />
+        <label htmlFor={imageInputId} className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 sm:col-span-2">Scan dari foto</label>
+        <form onSubmit={submitManual} className="flex gap-2 sm:col-span-2">
+          <label htmlFor={`${scannerId}-manual`} className="sr-only">Masukkan barcode manual</label>
+          <input id={`${scannerId}-manual`} value={manualValue} onChange={(event) => setManualValue(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ketik angka barcode" className="dashboard-input min-w-0 flex-1 rounded-xl border px-3 py-2" />
+          <button type="submit" className="min-h-11 rounded-xl bg-blue-900 px-4 text-sm font-bold text-white transition hover:bg-blue-800">Gunakan</button>
+        </form>
+      </div>
     </AccessibleDialog>
   );
 }
