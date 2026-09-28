@@ -83,10 +83,10 @@ export async function createReceptionVehicle(client: PoolClient, actor: Actor, i
   let vehicle;
   try {
     vehicle = (await client.query(
-      `INSERT INTO app.customer_vehicles(customer_id,vehicle_model_id,plate_number,year,vin,engine_number,odometer)
-       VALUES($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id,customer_id AS "customerId",vehicle_model_id AS "vehicleModelId",plate_number AS "plateNumber",year,vin,engine_number AS "engineNumber",odometer::text`,
-      [input.customerId, input.vehicleModelId ?? null, input.plateNumber, input.year ?? null, input.vin ?? null, input.engineNumber ?? null, input.odometer],
+      `INSERT INTO app.customer_vehicles(customer_id,vehicle_model_id,plate_number,year,vin,engine_number,odometer,image_url)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id,customer_id AS "customerId",vehicle_model_id AS "vehicleModelId",plate_number AS "plateNumber",year,vin,engine_number AS "engineNumber",odometer::text,image_url AS "imageUrl"`,
+      [input.customerId, input.vehicleModelId ?? null, input.plateNumber, input.year ?? null, input.vin ?? null, input.engineNumber ?? null, input.odometer, input.imageUrl ?? null],
     )).rows[0];
   } catch (error) {
     if (isUniqueViolation(error)) throw new ApiError(409, "VEHICLE_PLATE_EXISTS", "Nomor polisi sudah terdaftar");
@@ -189,7 +189,7 @@ export async function createReceptionOrder(client: PoolClient, actor: Actor, inp
 export async function getReceptionOrder(client: PoolClient, id: string) {
   const order = (await client.query(
     `SELECT s.id,s.order_number AS "orderNumber",s.status,s.service_type AS "serviceType",s.complaint,s.odometer::text,s.opened_at AS "openedAt",
-      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",v.id AS "vehicleId",v.plate_number AS "plateNumber",m.name AS model,
+      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",v.id AS "vehicleId",v.plate_number AS "plateNumber",v.image_url AS "imageUrl",m.name AS model,
       r.fuel_level::text AS "fuelLevel",r.physical_condition AS "physicalCondition",r.belongings,r.notes,r.recommendations,r.received_at AS "receivedAt"
      FROM app.service_orders s JOIN app.customers c ON c.id=s.customer_id JOIN app.customer_vehicles v ON v.id=s.vehicle_id
      LEFT JOIN app.vehicle_models m ON m.id=v.vehicle_model_id JOIN app.service_receptions r ON r.service_order_id=s.id WHERE s.id=$1`,

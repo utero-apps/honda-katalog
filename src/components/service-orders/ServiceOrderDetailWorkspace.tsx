@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { BarcodeScannerDialog } from "@/components/CatalogTools";
+import { ServiceOrderContextPanels } from "@/components/service-orders/ServiceOrderContextPanels";
 import {
   useCallback,
   useEffect,
@@ -33,6 +36,18 @@ const stages = [
   "paid",
   "handed_over",
 ];
+const stageByStatus: Record<string, number> = {
+  open: 0,
+  assigned: 1,
+  diagnosed: 1,
+  in_progress: 2,
+  waiting_parts: 2,
+  quality_check: 3,
+  completed: 6,
+  invoiced: 4,
+  paid: 5,
+  handed_over: 6,
+};
 const labels: Record<string, string> = {
   open: "Diterima",
   diagnosed: "Diagnosis",
@@ -60,6 +75,25 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 const number = (value?: number | string | null) => Number(value ?? 0);
 const dateTime = (value?: string | null) =>
   value ? date.format(new Date(value)) : "";
+type CatalogItem = {
+  id: string;
+  code: string;
+  name: string;
+  price: number;
+};
+type CatalogProduct = {
+  id: string;
+  partCode: string;
+  name: string;
+  het: number;
+  barcodes: string[];
+};
+type CatalogService = {
+  id: string;
+  code: string;
+  name: string;
+  fixedPrice: number;
+};
 
 export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<ServiceOrderWorkflow | null>(null);
@@ -162,6 +196,10 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
     order.customerName ?? order.customer?.name ?? "Pelanggan";
   const plate = order.plateNumber ?? order.vehicle?.plateNumber ?? "-";
   const model = order.model ?? order.vehicle?.model ?? "Model belum dicatat";
+  const hasDiagnosis = Boolean(
+    order.diagnosis?.findings || order.diagnosis?.notes,
+  );
+  const approved = Boolean(order.estimate?.approvedAt);
   return (
     <PageShell>
       <header className="border-b border-slate-200 bg-white">
@@ -200,7 +238,7 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
               {stages.map((stage, index) => {
-                const current = Math.max(stages.indexOf(order.status), 0);
+                const current = stageByStatus[order.status] ?? 0;
                 const done = index <= current;
                 return (
                   <div
@@ -217,9 +255,70 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 );
               })}
             </div>
+            {["open", "assigned"].includes(order.status) && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-black text-amber-950">
+                  Langkah berikutnya
+                </p>
+                <p className="mt-1 text-sm leading-6 text-amber-900">
+                  {!order.assignedMechanicId
+                    ? "Pilih mekanik terlebih dahulu."
+                    : !hasDiagnosis
+                      ? "Simpan diagnosis teknisi terlebih dahulu."
+                      : !approved
+                        ? "Setujui diagnosis dan estimasi pekerjaan."
+                        : "Mulai pengerjaan agar sparepart dapat ditambahkan."}
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  {!approved && (
+                    <button
+                      type="button"
+                      disabled={
+                        !order.assignedMechanicId ||
+                        !hasDiagnosis ||
+                        busy === "approve"
+                      }
+                      onClick={() =>
+                        void mutate("approve", {
+                          notes: "Diagnosis dan estimasi disetujui",
+                        })
+                      }
+                      className="min-h-11 rounded-xl bg-amber-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {busy === "approve"
+                        ? "Menyetujui…"
+                        : "Setujui pekerjaan"}
+                    </button>
+                  )}
+                  {approved && order.status === "assigned" && (
+                    <button
+                      type="button"
+                      disabled={busy === "start"}
+                      onClick={() => void mutate("start", {})}
+                      className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {busy === "start"
+                        ? "Memulai…"
+                        : "Mulai pengerjaan"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
           <div className="grid gap-5 xl:grid-cols-2">
             <InfoCard title="Pelanggan & kendaraan">
+              {order.vehicle?.imageUrl && (
+                <Image
+                  loader={({ src }) => src}
+                  unoptimized
+                  src={order.vehicle.imageUrl}
+                  alt={`Foto kendaraan ${plate}`}
+                  width={960}
+                  height={540}
+                  className="mb-4 aspect-video w-full rounded-xl border border-slate-200 object-cover"
+                />
+              )}
               <Data label="Pelanggan" value={customerName} />
               <Data
                 label="Telepon"
@@ -255,12 +354,23 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
               />
             </InfoCard>
           </div>
+          <ServiceOrderContextPanels orderId={order.id} vehicleId={order.vehicle?.id} />
           <div className="grid gap-5 xl:grid-cols-2">
             <LineItems
               title="Pekerjaan / jasa"
               items={order.jobs ?? []}
               empty="Belum ada pekerjaan."
               total={totals.jobs}
+              itemAction={
+                order.status === "in_progress"
+                  ? {
+                      label: "Selesaikan pekerjaan",
+                      isAvailable: (item) => item.status !== "completed",
+                      onClick: (item) =>
+                        item.id && void mutate("complete_job", { jobId: item.id }),
+                    }
+                  : undefined
+              }
             >
               <QuickLineForm
                 kind="job"
@@ -273,11 +383,28 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
               items={order.parts ?? []}
               empty="Belum ada sparepart."
               total={totals.parts}
+              itemAction={
+                order.status === "in_progress"
+                  ? {
+                      label: "Gunakan sparepart",
+                      isAvailable: (item) => !item.consumedAt,
+                      onClick: (item) =>
+                        item.id &&
+                        void mutate("consume_part", {
+                          partId: item.id,
+                          idempotencyKey: crypto.randomUUID(),
+                        }),
+                    }
+                  : undefined
+              }
             >
-              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-                Tambahkan sparepart dari pencarian inventori agar produk,
-                gudang, harga, dan biaya tercatat akurat.
-              </p>
+              <QuickLineForm
+                kind="part"
+                busy={busy === "add_part"}
+                disabled={order.status !== "in_progress"}
+                disabledMessage="Sparepart dapat ditambahkan setelah tombol Mulai pengerjaan ditekan."
+                onSubmit={(payload) => void mutate("add_part", payload)}
+              />
             </LineItems>
           </div>
           <InfoCard title="Timeline">
@@ -474,12 +601,18 @@ function LineItems({
   items,
   empty,
   total,
+  itemAction,
   children,
 }: {
   title: string;
   items: WorkflowItem[];
   empty: string;
   total: number;
+  itemAction?: {
+    label: string;
+    isAvailable: (item: WorkflowItem) => boolean;
+    onClick: (item: WorkflowItem) => void;
+  };
   children: ReactNode;
 }) {
   return (
@@ -497,6 +630,15 @@ function LineItems({
                   {number(item.quantity)} {item.unit ?? "unit"} ×{" "}
                   {money.format(number(item.price))}
                 </p>
+                {itemAction?.isAvailable(item) && (
+                  <button
+                    type="button"
+                    onClick={() => itemAction.onClick(item)}
+                    className="mt-2 min-h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800"
+                  >
+                    {itemAction.label}
+                  </button>
+                )}
               </div>
               <strong className="text-sm">
                 {money.format(
@@ -522,29 +664,160 @@ function LineItems({
 function QuickLineForm({
   kind,
   busy,
+  disabled = false,
+  disabledMessage,
   onSubmit,
 }: {
   kind: "job" | "part";
   busy: boolean;
+  disabled?: boolean;
+  disabledMessage?: string;
   onSubmit: (payload: Record<string, unknown>) => void;
 }) {
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [catalogError, setCatalogError] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const catalog =
+      kind === "job"
+        ? request<CatalogService[]>("/api/v1/operations/service-catalog").then(
+            (services) =>
+              services.map((service) => ({
+                id: service.id,
+                code: service.code,
+                name: service.name,
+                price: service.fixedPrice,
+              })),
+          )
+        : request<CatalogProduct[]>(
+            "/api/v1/catalog/products?status=active&pageSize=100",
+          ).then((products) =>
+            products.map((product) => ({
+              id: product.id,
+              code: product.partCode,
+              name: product.name,
+              price: product.het,
+            })),
+          );
+    void catalog
+      .then((items) => {
+        if (active) setCatalogItems(items);
+      })
+      .catch(() => {
+        if (active) setCatalogError("Katalog belum dapat dimuat.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [kind]);
+
+  function selectCatalogItem(item: CatalogItem) {
+    setSelectedProductId(item.id);
+    setName(item.name);
+    setPrice(String(item.price));
+  }
+
+  function selectCatalogProduct(productId: string) {
+    const product = catalogItems.find((item) => item.id === productId);
+    if (product) selectCatalogItem(product);
+  }
+
+  async function selectSparepartByBarcode(barcode: string) {
+    setCatalogError("");
+    try {
+      const products = await request<CatalogProduct[]>(
+        `/api/v1/catalog/products?status=active&pageSize=100&query=${encodeURIComponent(barcode)}`,
+      );
+      const product = products.find(
+        (item) => item.partCode === barcode || item.barcodes.includes(barcode),
+      );
+      if (!product)
+        throw new Error("Sparepart dengan barcode tersebut tidak ditemukan.");
+      selectCatalogItem({
+        id: product.id,
+        code: product.partCode,
+        name: product.name,
+        price: product.het,
+      });
+    } catch (reason) {
+      setCatalogError(
+        reason instanceof Error
+          ? reason.message
+          : "Barcode sparepart belum dapat diproses.",
+      );
+    }
+  }
+
   return (
-    <form
+    <>
+      <form
       className="mt-4 grid gap-2"
       onSubmit={(event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (disabled) return;
         const form = new FormData(event.currentTarget);
         onSubmit({
-          name: form.get("name"),
+          name,
+          productId: kind === "part" ? selectedProductId || undefined : undefined,
           quantity: Number(form.get("quantity")),
-          price: Number(form.get("price")),
+          price: Number(price),
         });
         event.currentTarget.reset();
+        setSelectedProductId("");
+        setName("");
+        setPrice("");
       }}
     >
+      {disabled && disabledMessage && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+          {disabledMessage}
+        </p>
+      )}
+      <label className="grid gap-1 text-sm font-bold text-slate-700">
+        Ambil dari katalog {kind === "job" ? "jasa" : "sparepart"}
+        <select
+            aria-label={`Pilih katalog ${
+              kind === "job" ? "jasa" : "sparepart"
+            }`}
+            value={selectedProductId}
+            disabled={disabled}
+            onChange={(event) => selectCatalogProduct(event.target.value)}
+            className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 font-normal"
+          >
+            <option value="">Pilih {kind === "job" ? "jasa" : "sparepart"} (opsional)</option>
+            {catalogItems.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.code} · {item.name} · {money.format(item.price)}
+              </option>
+            ))}
+          </select>
+          {catalogError && (
+            <span className="text-xs font-medium text-slate-500">
+              {catalogError} Input manual tetap tersedia.
+            </span>
+          )}
+      </label>
+      {kind === "part" && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setScannerOpen(true)}
+          className="min-h-11 rounded-xl border border-violet-300 bg-violet-50 px-3 text-sm font-bold text-violet-800"
+        >
+          Scan kode sparepart
+        </button>
+      )}
       <input
         name="name"
         required
+        disabled={disabled}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
         placeholder={
           kind === "job" ? "Nama pekerjaan" : "Kode / nama sparepart"
         }
@@ -558,6 +831,7 @@ function QuickLineForm({
           step="0.001"
           defaultValue="1"
           required
+          disabled={disabled}
           aria-label="Jumlah"
           className="min-h-11 rounded-xl border border-slate-300 px-3"
         />
@@ -566,20 +840,32 @@ function QuickLineForm({
           type="number"
           min="0"
           required
+          disabled={disabled}
           placeholder="Harga"
           aria-label="Harga"
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
           className="min-h-11 rounded-xl border border-slate-300 px-3"
         />
       </div>
       <button
-        disabled={busy}
+        disabled={busy || disabled}
         className="min-h-11 rounded-xl border border-blue-300 bg-blue-50 text-sm font-bold text-blue-800 disabled:opacity-50"
       >
         {busy
           ? "Menambahkan…"
           : `Tambah ${kind === "job" ? "pekerjaan" : "sparepart"}`}
       </button>
-    </form>
+      </form>
+      {scannerOpen && (
+        <BarcodeScannerDialog
+          title="Scan barcode sparepart"
+          description="Arahkan kamera ke barcode sparepart. Hasil scan mengisi produk dan harga otomatis."
+          onClose={() => setScannerOpen(false)}
+          onDetected={(barcode) => void selectSparepartByBarcode(barcode)}
+        />
+      )}
+    </>
   );
 }
 function QualityControl({

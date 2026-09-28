@@ -1,4 +1,4 @@
-export type BusinessKey = "customers" | "service-orders" | "inventory" | "vendors" | "finance" | "crm" | "intelligence";
+export type BusinessKey = "customers" | "service-orders" | "inventory" | "vendors" | "finance" | "crm" | "mechanics" | "intelligence";
 
 export type BusinessModule = {
   key: BusinessKey;
@@ -19,6 +19,7 @@ export const businessModules: BusinessModule[] = [
   { key: "vendors", href: "/business/vendors", label: "Vendor", eyebrow: "Purchasing", description: "Direktori pemasok, kontak, termin pembayaran, dan persiapan pembelian.", endpoint: "/api/v1/business/vendors", readRoles: ["owner", "admin", "warehouse", "finance"], writeRoles: ["owner", "admin", "warehouse"], actionLabel: "Vendor baru" },
   { key: "finance", href: "/business/finance", label: "Keuangan", eyebrow: "Cash Control", description: "Pengeluaran, hutang vendor, piutang pelanggan, dan arus kas bengkel.", endpoint: "/api/v1/business/expenses", readRoles: ["owner", "admin", "finance", "cashier"], writeRoles: ["owner", "admin", "finance", "cashier"], actionLabel: "Catat pengeluaran" },
   { key: "crm", href: "/business/crm", label: "CRM", eyebrow: "Customer Retention", description: "Follow-up dan reminder service untuk mempertahankan pelanggan.", endpoint: "/api/v1/intelligence/follow-ups", readRoles: ["owner", "admin"], writeRoles: ["owner", "admin"], actionLabel: "Follow-up baru" },
+  { key: "mechanics", href: "/business/mechanics", label: "Mekanik", eyebrow: "Mechanic Management", description: "Performa, pekerjaan, QC, pemakaian sparepart, fee, dan riwayat mekanik.", endpoint: "/api/v1/intelligence/mechanics", readRoles: ["owner", "admin"], writeRoles: [], actionLabel: "" },
   { key: "intelligence", href: "/business/intelligence", label: "Business Intelligence", eyebrow: "Decision Center", description: "Performa mekanik, loyalitas pelanggan, pendapatan, dan perputaran stok.", endpoint: "/api/v1/intelligence/business-overview", readRoles: ["owner", "admin"], writeRoles: [], actionLabel: "" },
 ];
 
@@ -29,5 +30,6 @@ export const businessColumns: Record<BusinessKey, Array<{ key: string; label: st
   vendors: [{ key: "code", label: "Kode" }, { key: "name", label: "Vendor" }, { key: "phone", label: "Telepon" }, { key: "email", label: "Email" }, { key: "paymentTermsDays", label: "Termin" }],
   finance: [{ key: "expenseNumber", label: "Nomor" }, { key: "category", label: "Kategori" }, { key: "description", label: "Keterangan" }, { key: "amount", label: "Jumlah" }, { key: "occurredAt", label: "Tanggal" }],
   crm: [{ key: "customerName", label: "Pelanggan" }, { key: "channel", label: "Kanal" }, { key: "dueAt", label: "Jadwal" }, { key: "status", label: "Status" }, { key: "notes", label: "Catatan" }],
+  mechanics: [{ key: "name", label: "Mekanik" }, { key: "totalOrders", label: "Total Order" }, { key: "completed", label: "Selesai" }, { key: "averageHours", label: "Rata-rata Jam" }, { key: "fees", label: "Fee" }],
   intelligence: [],
 };

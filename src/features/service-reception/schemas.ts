@@ -3,7 +3,8 @@ import { z } from "zod";
 const optionalText = (max: number) => z.string().trim().max(max).nullable().optional();
 const odometer = z.coerce.number().finite().min(0).max(999_999_999_999);
 const customerInput = z.object({ name: z.string().trim().min(2).max(160), phone: z.string().trim().min(5).max(40).optional(), email: z.email().optional(), address: optionalText(1000), notes: optionalText(4000) }).refine((value) => value.phone || value.email, "Telepon atau email wajib diisi");
-const vehicleInput = z.object({ plateNumber: z.string().trim().min(2).max(20), vehicleModelId: z.uuid().nullable().optional(), year: z.coerce.number().int().min(1950).max(2100).nullable().optional(), vin: optionalText(100), engineNumber: optionalText(100) });
+const vehicleImageUrl = z.string().regex(/^\/api\/v1\/media\/vehicles\/[0-9a-f-]+\.(jpg|png|webp|avif)$/, "URL gambar kendaraan tidak valid");
+const vehicleInput = z.object({ plateNumber: z.string().trim().min(2).max(20), vehicleModelId: z.uuid().nullable().optional(), year: z.coerce.number().int().min(1950).max(2100).nullable().optional(), vin: optionalText(100), engineNumber: optionalText(100), imageUrl: vehicleImageUrl.nullable().optional() });
 
 export const createCustomerSchema = customerInput;
 export const createVehicleSchema = vehicleInput.extend({ customerId: z.uuid(), odometer: odometer.default(0) });

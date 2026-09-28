@@ -5,6 +5,7 @@ export type Vehicle = {
   model?: string | null;
   year?: number | null;
   odometer?: number | null;
+  imageUrl?: string | null;
 };
 
 export type VehicleModel = {

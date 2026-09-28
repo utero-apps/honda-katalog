@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccessibleDialog } from "@/components/AccessibleDialog";
 import { BarcodeScannerDialog, CatalogTools } from "@/components/CatalogTools";
+import { ServiceCatalogPanel } from "@/components/catalog/ServiceCatalogPanel";
 import { BusinessWorkspace } from "@/components/BusinessWorkspace";
 import { businessModules } from "@/components/business-config";
 import { DashboardMobileNav } from "@/components/DashboardMobileNav";
@@ -536,14 +537,14 @@ export default function Home() {
                 <div>
                   <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
                     {view === "catalog"
-                      ? "Kelola katalog suku cadang."
+                      ? "Kelola katalog jasa dan sparepart."
                       : view === "business"
                         ? "Kelola modul bisnis bengkel."
                         : "Kendalikan operasi bengkel."}
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
                     {view === "catalog"
-                      ? "Cari, scan, impor, dan perbarui data sparepart dari satu halaman khusus."
+                      ? "Pisahkan pekerjaan / jasa dari sparepart, lalu cari, scan, dan perbarui datanya."
                       : view === "business"
                         ? "Kelola pelanggan, servis, inventori, vendor, keuangan, dan tindak lanjut."
                         : "Pantau ringkasan pekerjaan bengkel dan indikator operasional utama."}
@@ -564,6 +565,7 @@ export default function Home() {
               className="dashboard-page-catalog mt-8"
               aria-labelledby="catalog-heading"
             >
+              <ServiceCatalogPanel />
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                 <div>
                   <p className="dashboard-eyebrow">Catalog workspace</p>
@@ -571,7 +573,7 @@ export default function Home() {
                     id="catalog-heading"
                     className="mt-1 text-2xl font-black tracking-tight"
                   >
-                    Katalog Suku Cadang
+                    Sparepart
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
                     {products.length} produk ditampilkan. Cari, scan, atau

@@ -13,7 +13,7 @@ export const workflowActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
   z.object({ action: z.literal("set_target_completion"), targetCompletionAt: z.coerce.date() }),
   z.object({ action: z.literal("add_job"), name: text(2, 300), description: z.string().trim().max(2_000).nullable().optional(), price: money, mechanicId: z.uuid().nullable().optional() }),
-  z.object({ action: z.literal("add_part"), name: text(2, 500), quantity, price: money }),
+  z.object({ action: z.literal("add_part"), name: text(2, 500), productId: z.uuid().optional(), quantity, price: money }),
   z.object({ action: z.literal("complete_job"), jobId: z.uuid() }),
   z.object({ action: z.literal("reserve_part"), productId: z.uuid(), warehouseId: z.uuid(), quantity, unitPrice: money, unitCost: money }),
   z.object({ action: z.literal("consume_part"), partId: z.uuid(), idempotencyKey: text(8, 200) }),

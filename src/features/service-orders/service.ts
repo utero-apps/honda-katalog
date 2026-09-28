@@ -73,7 +73,7 @@ export async function getWorkflow(client: PoolClient, id: string) {
       s.assigned_mechanic_id AS "assignedMechanicId",s.approved_at AS "approvedAt",s.approved_by AS "approvedBy",s.approval_notes AS "approvalNotes",
       s.target_completion_at AS "targetCompletionAt",s.handed_over_at AS "handedOverAt",s.handed_over_by AS "handedOverBy",
       s.handover_recipient_name AS "handoverRecipientName",s.handover_signature_reference AS "handoverSignatureReference",s.handover_notes AS "handoverNotes",
-      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",v.id AS "vehicleId",v.plate_number AS "plateNumber",vm.name AS model,
+      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",v.id AS "vehicleId",v.plate_number AS "plateNumber",v.image_url AS "imageUrl",vm.name AS model,
       assigned_user.display_name AS "assignedMechanicName"
      FROM app.service_orders s JOIN app.customers c ON c.id=s.customer_id JOIN app.customer_vehicles v ON v.id=s.vehicle_id
      LEFT JOIN app.vehicle_models vm ON vm.id=v.vehicle_model_id LEFT JOIN app.users assigned_user ON assigned_user.id=s.assigned_mechanic_id WHERE s.id=$1`,
@@ -107,7 +107,7 @@ export async function getWorkflow(client: PoolClient, id: string) {
     ...order,
     odometer: order.odometer === null ? null : Number(order.odometer),
     customer: { id: order.customerId, name: order.customerName, phone: order.customerPhone },
-    vehicle: { id: order.vehicleId, plateNumber: order.plateNumber, model: order.model, odometer: order.odometer === null ? null : Number(order.odometer) },
+    vehicle: { id: order.vehicleId, plateNumber: order.plateNumber, model: order.model, odometer: order.odometer === null ? null : Number(order.odometer), imageUrl: order.imageUrl ?? null },
     diagnosis: order.diagnosis ? { notes: order.diagnosis, findings: order.diagnosis, estimatedTotal: labor + partTotal, updatedAt: order.updatedAt } : null,
     mechanics: mechanics.rows,
     jobs: jobItems,
@@ -182,10 +182,15 @@ export async function executeWorkflow(client: PoolClient, actor: Actor, orderId:
     )).rows[0];
   } else if (input.action === "add_part") {
     if (order.status !== "in_progress") throw new ApiError(409, "PART_NOT_ALLOWED", "Part hanya dapat ditambahkan saat pekerjaan berjalan");
-    const product = (await client.query<{ id: string; hpp: string }>(
-      "SELECT id,hpp::text FROM app.products WHERE status='active' AND (part_code ILIKE $1 OR name ILIKE $1) ORDER BY id LIMIT 2 FOR SHARE",
-      [input.name],
-    )).rows;
+    const product = input.productId
+      ? (await client.query<{ id: string; hpp: string }>(
+          "SELECT id,hpp::text FROM app.products WHERE id=$1 AND status='active' FOR SHARE",
+          [input.productId],
+        )).rows
+      : (await client.query<{ id: string; hpp: string }>(
+          "SELECT id,hpp::text FROM app.products WHERE status='active' AND (part_code ILIKE $1 OR name ILIKE $1) ORDER BY id LIMIT 2 FOR SHARE",
+          [input.name],
+        )).rows;
     if (product.length !== 1) throw new ApiError(422, "PRODUCT_AMBIGUOUS", "Pilih kode part yang tepat dari katalog");
     const warehouse = (await client.query<{ warehouse_id: string }>(
       `SELECT warehouse_id FROM app.inventory_balances WHERE product_id=$1 AND quantity-reserved_quantity >= $2 ORDER BY quantity-reserved_quantity DESC,warehouse_id LIMIT 1 FOR UPDATE`,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Profile = {
   customer: {
@@ -35,16 +35,60 @@ type Profile = {
     status?: string;
     notes?: string | null;
   }>;
-  reminders?: Array<{
+  reminders: Array<{
     id: string;
+    vehicleId: string;
+    plateNumber: string;
     dueAt?: string;
     odometerDue?: number | null;
     status?: string;
-    notes?: string | null;
+  }>;
+  spareParts: Array<{
+    id: string;
+    serviceOrderId: string;
+    orderNumber: string;
+    openedAt?: string | null;
+    productId: string;
+    partCode: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    consumedAt?: string | null;
+  }>;
+  invoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    serviceOrderId?: string | null;
+    orderNumber?: string | null;
+    status: string;
+    total: number;
+    paidAmount: number;
+    outstandingAmount: number;
+    issuedAt?: string | null;
+    dueAt?: string | null;
+  }>;
+  payments: Array<{
+    id: string;
+    paymentNumber: string;
+    invoiceNumber: string;
+    amount: number;
+    method: string;
+    reference?: string | null;
+    paidAt?: string;
+    status: string;
+  }>;
+  posTransactions: Array<{
+    id: string;
+    saleNumber: string;
+    status: string;
+    total: number;
+    completedAt?: string;
+    voidedAt?: string | null;
   }>;
 };
 type Envelope<T> = { data: T; error?: { message?: string } | null };
 const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" });
+const money = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const statusLabel = (value?: string) =>
   ({
     open: "Aktif",
@@ -52,6 +96,12 @@ const statusLabel = (value?: string) =>
     quality_check: "QC",
     completed: "Selesai",
     paid: "Lunas",
+    posted: "Terbit",
+    partially_paid: "Sebagian",
+    reversed: "Dibatalkan",
+    voided: "Void",
+    sent: "Terkirim",
+    cancelled: "Dibatalkan",
     pending: "Menunggu",
     done: "Selesai",
   })[value ?? ""] ??
@@ -88,15 +138,6 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
       active = false;
     };
   }, [customerId]);
-  const reminders = useMemo(
-    () =>
-      profile?.reminders ??
-      profile?.followUps.filter(
-        (item) => item.channel === "service_reminder",
-      ) ??
-      [],
-    [profile],
-  );
   if (loading)
     return (
       <Shell>
@@ -211,6 +252,72 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
               <Empty text="Belum ada riwayat servis." />
             )}
           </Card>
+          <Card title="Riwayat Sparepart">
+            {profile.spareParts.length ? (
+              <div className="divide-y divide-slate-100">
+                {profile.spareParts.map((part) => (
+                  <article key={part.id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div>
+                      <p className="font-mono text-xs font-bold text-blue-700">{part.partCode}</p>
+                      <p className="font-bold text-slate-950">{part.name}</p>
+                      <Link href={`/business/service-orders/${part.serviceOrderId}`} className="mt-1 inline-block text-xs font-bold text-blue-700 hover:underline">
+                        {part.orderNumber}
+                      </Link>
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="font-black">{part.quantity.toLocaleString("id-ID")} × {money.format(part.unitPrice)}</p>
+                      <p className="text-xs text-slate-500">{part.consumedAt ? "Sudah digunakan" : "Masih direservasi"}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <Empty text="Belum ada pemakaian sparepart." />}
+          </Card>
+          <Card title="Invoice & Pembayaran">
+            {profile.invoices.length ? (
+              <div className="space-y-3">
+                {profile.invoices.map((invoice) => (
+                  <article key={invoice.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-sm font-black">{invoice.invoiceNumber}</p>
+                        <p className="mt-1 text-xs text-slate-500">{invoice.issuedAt ? date.format(new Date(invoice.issuedAt)) : "Tanggal belum tersedia"}</p>
+                      </div>
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">{statusLabel(invoice.status)}</span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                      <Metric label="Total" value={money.format(invoice.total)} />
+                      <Metric label="Dibayar" value={money.format(invoice.paidAmount)} />
+                      <Metric label="Sisa" value={money.format(invoice.outstandingAmount)} emphasis={invoice.outstandingAmount > 0} />
+                    </div>
+                  </article>
+                ))}
+                {profile.payments.length > 0 && (
+                  <div className="border-t border-slate-200 pt-3">
+                    <p className="mb-2 text-xs font-black uppercase tracking-[.14em] text-slate-500">Pembayaran terakhir</p>
+                    {profile.payments.slice(0, 5).map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                        <div><p className="font-bold">{payment.paymentNumber}</p><p className="text-xs text-slate-500">{payment.invoiceNumber} · {payment.method}</p></div>
+                        <strong className={payment.status === "reversed" ? "text-red-700 line-through" : "text-slate-950"}>{money.format(payment.amount)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : <Empty text="Belum ada invoice pelanggan yang dapat ditampilkan." />}
+          </Card>
+          <Card title="Transaksi POS">
+            {profile.posTransactions.length ? (
+              <div className="divide-y divide-slate-100">
+                {profile.posTransactions.map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between gap-4 py-3">
+                    <div><p className="font-mono text-sm font-bold">{transaction.saleNumber}</p><p className="mt-1 text-xs text-slate-500">{transaction.completedAt ? date.format(new Date(transaction.completedAt)) : "-"}</p></div>
+                    <div className="text-right"><p className="font-black">{money.format(transaction.total)}</p><p className="text-xs font-bold text-slate-500">{statusLabel(transaction.status)}</p></div>
+                  </div>
+                ))}
+              </div>
+            ) : <Empty text="Belum ada transaksi POS atas nama pelanggan ini." />}
+          </Card>
         </div>
         <aside className="space-y-5">
           <Card title="Kontak & catatan">
@@ -227,7 +334,7 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
             <Activity items={profile.followUps} empty="Belum ada follow-up." />
           </Card>
           <Card title="Reminder service">
-            <Activity items={reminders} empty="Belum ada reminder." />
+            <Activity items={profile.reminders} empty="Belum ada reminder service terjadwal." />
           </Card>
         </aside>
       </main>
@@ -254,6 +361,9 @@ function Data({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+function Metric({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
+  return <div className="min-w-0 rounded-lg bg-slate-50 p-2"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 truncate font-black ${emphasis ? "text-red-700" : "text-slate-950"}`}>{value}</p></div>;
+}
 function Activity({
   items,
   empty,
@@ -265,6 +375,7 @@ function Activity({
     channel?: string;
     notes?: string | null;
     odometerDue?: number | null;
+    plateNumber?: string;
   }>;
   empty: string;
 }) {
@@ -274,7 +385,7 @@ function Activity({
         <li key={item.id} className="rounded-xl border border-slate-200 p-3">
           <div className="flex justify-between gap-3">
             <span className="text-xs font-bold uppercase text-blue-700">
-              {item.channel || "Service"}
+              {item.plateNumber || item.channel || "Service"}
             </span>
             <span className="text-xs font-bold text-slate-500">
               {statusLabel(item.status)}

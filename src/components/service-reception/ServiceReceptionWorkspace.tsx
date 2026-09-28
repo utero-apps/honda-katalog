@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { VehicleCameraDialog } from "./VehicleCameraDialog";
 import {
   useCallback,
   useEffect,
@@ -241,6 +242,10 @@ export function ServiceReceptionWorkspace({
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState("");
+  const vehicleImageInputRef = useRef<HTMLInputElement>(null);
+  const [vehicleImage, setVehicleImage] = useState<File | null>(null);
+  const [vehicleImageError, setVehicleImageError] = useState("");
+  const [showVehicleCamera, setShowVehicleCamera] = useState(false);
   const [savingEntity, setSavingEntity] = useState(false);
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -373,6 +378,21 @@ export function ServiceReceptionWorkspace({
     setFormError("");
     try {
       const vehicleModelId = String(data.get("vehicleModelId") || "") || null;
+      let imageUrl: string | null = null;
+      if (vehicleImage) {
+        const imageData = new FormData();
+        imageData.set("image", vehicleImage);
+        const response = await fetch(
+          "/api/v1/operations/service-reception/vehicle-images",
+          { method: "POST", body: imageData },
+        );
+        const body = (await response.json()) as ApiEnvelope<{ imageUrl: string }>;
+        if (!response.ok)
+          throw new Error(
+            body.error?.message || "Gambar kendaraan belum dapat diunggah",
+          );
+        imageUrl = body.data.imageUrl;
+      }
       const createdVehicle = await api<Vehicle>(
         "/api/v1/operations/service-reception/vehicles",
         {
@@ -383,6 +403,7 @@ export function ServiceReceptionWorkspace({
             vehicleModelId,
             year: data.get("year") ? Number(data.get("year")) : null,
             odometer: data.get("odometer") ? Number(data.get("odometer")) : 0,
+            imageUrl,
           }),
         },
       );
@@ -402,6 +423,9 @@ export function ServiceReceptionWorkspace({
       if (vehicle.odometer !== null && vehicle.odometer !== undefined)
         updateDraft("odometer", String(vehicle.odometer));
       setShowVehicleForm(false);
+      setVehicleImage(null);
+      setVehicleImageError("");
+      if (vehicleImageInputRef.current) vehicleImageInputRef.current.value = "";
     } catch (reason) {
       setFormError(
         reason instanceof Error
@@ -931,6 +955,73 @@ export function ServiceReceptionWorkspace({
                       className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                     />
                   </Field>
+                  <Field
+                    label="Foto kendaraan"
+                    helper="Opsional. JPEG, PNG, WebP, atau AVIF. Maksimal 5 MB."
+                  >
+                    <input
+                      ref={vehicleImageInputRef}
+                      name="vehicleImage"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      capture="environment"
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] ?? null;
+                        const allowedTypes = [
+                          "image/jpeg",
+                          "image/png",
+                          "image/webp",
+                          "image/avif",
+                        ];
+                        if (
+                          file &&
+                          (!allowedTypes.includes(file.type) ||
+                            file.size > 5 * 1024 * 1024)
+                        ) {
+                          setVehicleImage(null);
+                          setVehicleImageError(
+                            "Gunakan gambar JPEG, PNG, WebP, atau AVIF maksimal 5 MB.",
+                          );
+                          event.currentTarget.value = "";
+                          return;
+                        }
+                        setVehicleImage(file);
+                        setVehicleImageError("");
+                      }}
+                      className="mt-2 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVehicleImageError("");
+                        setShowVehicleCamera(true);
+                      }}
+                      className="mt-2 min-h-11 w-full rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-black text-blue-800 hover:bg-blue-100"
+                    >
+                      Ambil foto dari kamera
+                    </button>
+                    {vehicleImage && (
+                      <span className="mt-1 block text-xs font-semibold text-slate-600">
+                        {vehicleImage.name}
+                      </span>
+                    )}
+                    {vehicleImageError && (
+                      <span className="mt-1 block text-xs font-semibold text-red-700">
+                        {vehicleImageError}
+                      </span>
+                    )}
+                  </Field>
+                  {showVehicleCamera && (
+                    <VehicleCameraDialog
+                      onClose={() => setShowVehicleCamera(false)}
+                      onCapture={(file) => {
+                        setVehicleImage(file);
+                        setVehicleImageError("");
+                        if (vehicleImageInputRef.current)
+                          vehicleImageInputRef.current.value = "";
+                      }}
+                    />
+                  )}
                   <button
                     type="submit"
                     disabled={savingEntity}

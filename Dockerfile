@@ -40,7 +40,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-RUN mkdir -p data/product-images && chown -R nextjs:nodejs data
+RUN mkdir -p data/product-images data/vehicle-images && chown -R nextjs:nodejs data
 
 # Set the correct permission for prerender cache
 RUN mkdir .next
@@ -57,6 +57,7 @@ EXPOSE 7780
 
 ENV PORT=7780
 ENV PRODUCT_IMAGE_DIR=/app/data/product-images
+ENV VEHICLE_IMAGE_DIR=/app/data/vehicle-images
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output

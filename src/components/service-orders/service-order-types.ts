@@ -14,6 +14,7 @@ export type ServiceOrder = {
     plateNumber?: string;
     model?: string | null;
     odometer?: number | string | null;
+    imageUrl?: string | null;
   };
   plateNumber?: string;
   model?: string | null;
@@ -33,6 +34,7 @@ export type WorkflowItem = {
   unit?: string;
   price?: number | string;
   subtotal?: number | string;
+  consumedAt?: string | null;
   createdAt?: string;
   actorName?: string | null;
   notes?: string | null;
