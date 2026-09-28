@@ -26,6 +26,12 @@ describe("dashboard navigation", () => {
   it("provides dedicated catalog and business routes", () => {
     expect(existsSync(new URL("./catalog/page.tsx", import.meta.url))).toBe(true);
     expect(existsSync(new URL("./business/page.tsx", import.meta.url))).toBe(true);
+    expect(existsSync(new URL("./business/[module]/page.tsx", import.meta.url))).toBe(true);
+  });
+
+  it("treats nested business routes as the business area", () => {
+    expect(page).toContain('pathname.startsWith("/business/")');
+    expect(page).toContain('<BusinessWorkspace role={user.role} />');
   });
 
   it("keeps all primary pages reachable on mobile", () => {

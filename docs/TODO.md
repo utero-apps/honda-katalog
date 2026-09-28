@@ -85,6 +85,8 @@
 - [x] P2-009 [P1] Adjustment dan stock opname.
 - [x] P2-010 [P1] Low-stock alert.
 - [x] P2-011 [P1] Service/inventory RLS/API/E2E tests.
+- [x] P2-012 [P1] Halaman pelanggan dan service order dengan URL permanen, pencarian, form aksi, mobile cards.
+- [x] P2-013 [P0] Validasi kepemilikan kendaraan dan state transition diagnosis.
 
 ## 6. Phase 3 - Business
 
@@ -99,6 +101,9 @@
 - [x] P3-009 [P1] Mechanic fee.
 - [x] P3-010 [P0] Reversal posted records.
 - [x] P3-011 [P1] Reconciliation/E2E tests.
+- [x] P3-012 [P1] Halaman vendor dan keuangan dengan data domain serta aksi pengeluaran.
+- [x] P3-013 [P0] Validasi receipt terhadap status PO dan item PO.
+- [x] P3-014 [P1] Read model customer invoice dan payment untuk halaman keuangan.
 
 ## 7. Phase 4 - Intelligence
 
@@ -110,6 +115,7 @@
 - [x] P4-006 [P1] Product, retention, turnover metrics.
 - [x] P4-007 [P2] CSV export.
 - [x] P4-008 [P1] Report reconciliation tests.
+- [x] P4-009 [P1] Halaman CRM dengan follow-up/reminder dan form tindak lanjut.
 
 ## 8. UX dan Accessibility
 
@@ -120,6 +126,7 @@
 - [x] UX-005 [P1] Loading/empty/error/recovery.
 - [x] UX-006 [P1] Mobile 360 px verification.
 - [x] UX-007 [P1] Accessibility tests.
+- [x] UX-008 [P1] Enam halaman bisnis domain-specific dengan deep link, loading/error/empty/retry, pencarian, dan responsive table/card.
 
 ## 9. Audit Remediation
 
@@ -132,6 +139,9 @@
 - [x] AUD-007 [P1] Ganti manual SQL dengan migrations.
 - [x] AUD-008 [P1] Hapus fixture mati setelah reconciliation.
 - [x] AUD-009 [P0] Lint lulus tanpa warning.
+- [x] AUD-010 [P0] Integritas customer-vehicle dan transisi diagnosis service order.
+- [x] AUD-011 [P0] Semantik stock movement dan validasi goods receipt.
+- [x] AUD-012 [P1] Read model keuangan dan permission-aligned CRM navigation.
 
 ## 10. Test, DevOps, Release
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccessibleDialog } from "@/components/AccessibleDialog";
 import { BarcodeScannerDialog, CatalogTools } from "@/components/CatalogTools";
+import { BusinessWorkspace } from "@/components/BusinessWorkspace";
 import { DashboardMobileNav } from "@/components/DashboardMobileNav";
 import { WorkspaceOverview } from "@/components/WorkspaceOverview";
 
@@ -37,7 +38,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<Envelope<T>> {
 
 export default function Home() {
   const pathname = usePathname();
-  const view = pathname === "/catalog" ? "catalog" : pathname === "/business" ? "business" : "dashboard";
+  const view = pathname === "/catalog" ? "catalog" : pathname === "/business" || pathname.startsWith("/business/") ? "business" : "dashboard";
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -193,7 +194,7 @@ export default function Home() {
               {!productsLoading && !productsError && products.length === 0 && <div className="mt-5 grid min-h-56 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center"><div><h3 className="font-black text-slate-900">Produk tidak ditemukan</h3><p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-600">Ubah kata pencarian, scan barcode, impor CSV, atau tambahkan produk baru.</p><div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row"><button type="button" onClick={() => { setQuery(""); void loadProducts(""); }} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Reset pencarian</button><button type="button" onClick={() => openProductForm(null)} className="dashboard-primary-button min-h-11 rounded-xl px-4 text-sm font-bold">Tambah produk</button></div></div></div>}
               <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{products.map((product) => <article key={product.id} className="dashboard-product-card rounded-2xl p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{product.category || "Tanpa kategori"}</p><h3 className="mt-2 truncate text-lg font-black text-slate-950">{product.name}</h3></div><button onClick={() => openProductForm(product)} className="rounded-lg px-2 py-1.5 text-sm font-bold text-blue-800 transition hover:bg-blue-50">Edit</button></div><code className="mt-5 block rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">{product.partCode}</code><div className="mt-5 flex items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Harga eceran</p><strong className="mt-1 block text-lg font-black text-blue-900">{money.format(product.het)}</strong></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${product.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{product.status === "active" ? "Aktif" : product.status === "archived" ? "Arsip" : "Nonaktif"}</span></div><p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-500">{product.compatibleModels.join(", ") || "Kompatibilitas belum diatur"}</p></article>)}</div>
             </section>
-            <div id="workspace" className="dashboard-page-workspace mt-8"><WorkspaceOverview key={view} role={user.role} scope={view === "dashboard" ? "dashboard" : "business"} /></div>
+            <div id="workspace" className="dashboard-page-workspace mt-8">{view === "dashboard" ? <WorkspaceOverview key={view} role={user.role} scope="dashboard" /> : <BusinessWorkspace role={user.role} />}</div>
           </div>
         </div>
       </div>

@@ -811,3 +811,57 @@ Tambah navigasi mobile sticky dengan deep link dan status halaman aktif. Tambah 
 ### Verifikasi
 
 Typecheck, lint, 29 regression test, build production Docker, dan smoke test HTTP untuk `/`, `/catalog`, `/business`, serta `/api/health` lulus.
+
+## BUG-20260928-031 - Modul bisnis hanya berupa tab data generik tanpa workflow operasional
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Pelanggan, Service Order, Inventori, Vendor, Keuangan, CRM
+- Severity: High
+
+### Gejala
+
+Enam modul bisnis ditampilkan sebagai tab horizontal pada satu halaman. Setiap tab hanya melakukan GET dan merender kolom objek secara generik. Tidak ada URL permanen per modul, pencarian domain, ringkasan, maupun form untuk menjalankan operasi yang sudah tersedia di API.
+
+### Sumber
+
+`WorkspaceOverview` menggunakan satu konfigurasi endpoint dan komponen `DataView` generik. Route `/business` tidak memiliki child route untuk pelanggan, service order, inventori, vendor, keuangan, atau CRM.
+
+### Dampak
+
+API Phase 2–4 tidak dapat digunakan penuh dari dashboard. Pengguna tidak dapat membuat pelanggan, membuka service order, menyesuaikan stok, menambah vendor, mencatat biaya, atau menjadwalkan follow-up tanpa memanggil API secara manual.
+
+### Perbaikan
+
+Buat route permanen per modul, command center bisnis, navigasi responsif, tampilan data domain, pencarian, ringkasan, form aksi, status loading/error/empty, dan regression test route serta workflow.
+
+### Verifikasi
+
+Typecheck, lint, dan 66 regression test lulus. Docker production build dan HTTP 200 diverifikasi untuk `/business`, enam deep-link modul, serta `/api/health`. Security matrix container lulus untuk anonymous access, privilege escalation, IDOR, session expiry, dan token rotation.
+
+## BUG-20260928-032 - Integritas service order, stock movement, dan goods receipt belum divalidasi cukup
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Service, inventori, purchasing
+- Severity: Critical
+
+### Gejala
+
+API dapat membuat service order menggunakan kendaraan milik pelanggan lain, mengubah status lewat diagnosis tanpa transisi valid, mencatat arah stock movement yang salah, dan menerima barang terhadap PO yang belum disetujui atau item yang bukan bagian PO.
+
+### Sumber
+
+Route hanya memvalidasi bentuk payload, belum menegakkan kepemilikan kendaraan, state machine, semantik tanda kuantitas, dan keterkaitan receipt terhadap PO.
+
+### Dampak
+
+Riwayat layanan dapat salah, saldo ledger membingungkan, dan penerimaan barang dapat mem-post stok terhadap dokumen pembelian yang tidak sah.
+
+### Perbaikan
+
+Validasi pasangan kendaraan-pelanggan, batasi diagnosis agar hanya memindahkan open ke assigned, validasi tanda kuantitas per tipe movement, dan validasi status PO, duplikasi item, serta kepemilikan item sebelum receipt dibuat.
+
+### Verifikasi
+
+Focused API regression test untuk service, inventory, dan receipt lulus sebagai bagian dari 66 test.

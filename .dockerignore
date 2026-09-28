@@ -13,4 +13,5 @@ README.md
 .env.production.local
 data
 db/legacy
+.codegraph
 
