@@ -408,7 +408,7 @@ export default function Home() {
         Lewati navigasi
       </a>
       <div className="lg:grid lg:min-h-screen lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className="hidden h-dvh overflow-y-auto border-r border-blue-950/10 bg-blue-950 p-5 text-blue-50 lg:flex lg:flex-col">
+        <aside className="hidden h-dvh overflow-y-auto border-r border-blue-950/10 bg-blue-950 p-5 text-blue-50 lg:sticky lg:top-0 lg:self-start lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500 font-black text-blue-950">
               H

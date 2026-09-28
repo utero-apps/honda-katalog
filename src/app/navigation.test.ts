@@ -21,6 +21,7 @@ describe("dashboard navigation", () => {
     expect(page).toContain('aria-label="Navigasi utama"');
     expect(page).toContain('aria-label="Modul bisnis"');
     expect(page).toContain('businessNavigation.map((module) =>');
+    expect(page).toContain('lg:sticky lg:top-0 lg:self-start');
     expect(page).toContain('<DashboardMobileNav view={view} />');
     expect(page).toContain('href="#main-content"');
   });
