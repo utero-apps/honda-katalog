@@ -163,7 +163,9 @@ function ItemImage({
   );
 }
 
-function openBillItemToCart(item: OpenBill["items"][number]): CartItem | null {
+export function openBillItemToCart(
+  item: OpenBill["items"][number],
+): CartItem | null {
   const itemType = item.itemType ?? (item.serviceId ? "service" : "product");
   const source = itemType === "service" ? item.service : item.product;
   const id = itemType === "service" ? item.serviceId : item.productId;
@@ -209,25 +211,10 @@ function openBillItemToCart(item: OpenBill["items"][number]): CartItem | null {
       } as CartItem);
 }
 
-function mergeCart(current: CartItem[], restored: CartItem[]) {
-  return restored.reduce((result, incoming) => {
-    const found = result.find((item) => cartKey(item) === cartKey(incoming));
-    return found
-      ? result.map((item) =>
-          cartKey(item) === cartKey(incoming)
-            ? {
-                ...item,
-                cartQuantity: item.cartQuantity + incoming.cartQuantity,
-              }
-            : item,
-        )
-      : [...result, incoming];
-  }, current);
-}
-
 export function PosWorkspace() {
   const searchRef = useRef<HTMLInputElement>(null);
   const requestSequence = useRef(0);
+  const openBillRequestSequence = useRef(0);
   const skipAutosave = useRef(false);
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -337,7 +324,8 @@ export function PosWorkspace() {
   );
 
   const loadOpenBill = useCallback(
-    async (selectedCustomerId: string, merge: boolean) => {
+    async (selectedCustomerId: string) => {
+      const sequence = ++openBillRequestSequence.current;
       setSaveState("loading");
       try {
         const bill = await request<OpenBill | null>(
@@ -346,17 +334,17 @@ export function PosWorkspace() {
         const restored = (bill?.items ?? [])
           .map(openBillItemToCart)
           .filter((item): item is CartItem => Boolean(item));
+        if (sequence !== openBillRequestSequence.current) return;
         setOpenBillId(bill?.id ?? null);
-        setCart((current) => (merge ? mergeCart(current, restored) : restored));
+        setCart(restored);
         setSaveState(bill ? "saved" : "local");
         setNotice(
           bill
-            ? merge && restored.length
-              ? "Open Bill digabung dengan keranjang aktif."
-              : "Open Bill pelanggan dipulihkan."
+            ? "Open Bill pelanggan dipulihkan."
             : "Belum ada Open Bill pelanggan ini.",
         );
       } catch (reason) {
+        if (sequence !== openBillRequestSequence.current) return;
         setSaveState("error");
         setNotice(
           reason instanceof Error ? reason.message : "Open Bill gagal dimuat.",
@@ -504,16 +492,20 @@ export function PosWorkspace() {
   }
 
   async function selectCustomer(nextId: string) {
+    skipAutosave.current = true;
     if (!nextId) {
+      openBillRequestSequence.current += 1;
       setCustomerId("");
       setOpenBillId(null);
+      setCart([]);
       setSaveState("local");
+      setNotice("Transaksi pelanggan umum dimulai dengan keranjang kosong.");
       return;
     }
-    skipAutosave.current = true;
-    const merge = cart.length > 0;
     setCustomerId(nextId);
-    await loadOpenBill(nextId, merge);
+    setOpenBillId(null);
+    setCart([]);
+    await loadOpenBill(nextId);
   }
 
   async function checkout(payment: CheckoutPayment) {

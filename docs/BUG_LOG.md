@@ -1073,3 +1073,26 @@ Pisahkan validasi katalog dari row lock produk atau tambahkan policy locking yan
 ### Verifikasi
 
 `scripts/security-api.mjs` sekarang memvalidasi register, UUID produk, stok positif, kontrak item, dan mencetak error plus fixture lengkap. Backend dinyatakan fixed setelah cashier dapat membuat Open Bill dan security matrix melanjutkan test IDOR checkout.
+
+## BUG-20260928-041 - Cart pelanggan lama tersalin saat pelanggan POS diganti
+
+- Tanggal: 28 September 2026
+- Status: Fixed
+- Area: POS, Open Bill
+- Severity: High
+
+### Gejala
+
+Saat kasir mengganti pelanggan pada transaksi aktif, item pelanggan sebelumnya digabung ke Open Bill pelanggan baru. Pelanggan tanpa Open Bill menerima isi cart yang bukan miliknya.
+
+### Sumber
+
+`selectCustomer` mengirim flag `merge` setiap kali cart berisi item. `loadOpenBill` lalu menggabungkan cart aktif dengan Open Bill pelanggan terpilih. Respons request lama juga belum memiliki sequence guard khusus, sehingga perpindahan pelanggan cepat berisiko menampilkan data pelanggan sebelumnya.
+
+### Perbaikan
+
+Pergantian pelanggan sekarang selalu mengganti cart dengan Open Bill milik pelanggan terpilih. Pelanggan tanpa Open Bill mendapat cart kosong. Pilihan pelanggan umum menghapus relasi Open Bill dan cart pelanggan. Sequence guard khusus mencegah respons lama menimpa pilihan pelanggan terbaru.
+
+### Verifikasi
+
+Unit test memvalidasi pemulihan item Open Bill terpilih tanpa membawa ID item cart pelanggan sebelumnya. Typecheck, lint, test, Docker rebuild, dan verifikasi browser dijalankan setelah patch.
