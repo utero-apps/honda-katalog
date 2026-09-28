@@ -677,3 +677,29 @@ Ubah assertion untuk memverifikasi pemanggilan `previouslyFocusedRef.current?.fo
 
 Seluruh accessibility test dan unit test lulus.
 
+## BUG-20260928-026 - Navigasi sidebar memakai anchor section, bukan halaman aplikasi
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Dashboard navigation
+- Severity: Medium
+
+### Gejala
+
+Menu `Ringkasan Operasional`, `Katalog Sparepart`, dan `Modul Bisnis` hanya memindahkan scroll ke section dalam satu halaman. Dua menu juga menunjuk target `#workspace` yang sama, sehingga konteks halaman dan URL tidak jelas.
+
+### Sumber
+
+Sidebar memakai elemen anchor `href="#workspace"` dan `href="#catalog"`, sementara dashboard, katalog, dan modul bisnis dirender bersama dalam `src/app/page.tsx`.
+
+### Dampak
+
+Pengguna melihat panel operasi muncul di bawah katalog dan mengira komponen salah tempat. Navigasi tidak memiliki deep link halaman yang jelas.
+
+### Perbaikan
+
+Tambah route `/`, `/catalog`, dan `/business`. Ubah sidebar menjadi `next/link`, beri state aktif berbasis pathname, dan tampilkan konten sesuai tujuan halaman.
+
+### Verifikasi
+
+`npm run typecheck`, `npm run lint`, `npm test` (23 test), dan image production Docker lulus. Endpoint `/`, `/catalog`, `/business`, dan `/api/health` mengembalikan HTTP 200.

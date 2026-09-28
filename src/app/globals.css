@@ -142,6 +142,25 @@ html {
   transform: translateY(0);
 }
 
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-page--dashboard .dashboard-page-workspace {
+  order: 1;
+}
+
+.dashboard-page--dashboard .dashboard-hero {
+  order: 0;
+}
+
+.dashboard-page--dashboard .dashboard-page-catalog,
+.dashboard-page--catalog .dashboard-page-workspace,
+.dashboard-page--business .dashboard-page-catalog {
+  display: none;
+}
+
 :where(button, input, select, textarea, a):focus-visible {
   outline: 3px solid #2563eb;
   outline-offset: 2px;

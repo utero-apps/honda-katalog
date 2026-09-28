@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 type IconName = "dashboard" | "customers" | "service" | "inventory" | "vendors" | "expenses" | "crm" | "refresh" | "alert" | "empty";
 
@@ -91,8 +91,8 @@ function DataView({ rows }: { rows: Record<string, unknown>[] }) {
   </>;
 }
 
-export function WorkspaceOverview({ role }: { role: string }) {
-  const allowed = modules.filter((module) => module.roles.includes(role));
+export function WorkspaceOverview({ role, scope = "business" }: { role: string; scope?: "dashboard" | "business" }) {
+  const allowed = useMemo(() => modules.filter((module) => module.roles.includes(role) && (scope === "dashboard" ? module.key === "dashboard" : module.key !== "dashboard")), [role, scope]);
   const [active, setActive] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
@@ -101,7 +101,7 @@ export function WorkspaceOverview({ role }: { role: string }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeModule = allowed.find((module) => module.key === active);
 
-  async function load(module: Module) {
+  const load = useCallback(async (module: Module) => {
     const currentRequest = ++requestId.current;
     setActive(module.key);
     setLoading(true);
@@ -119,7 +119,13 @@ export function WorkspaceOverview({ role }: { role: string }) {
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!allowed[0]) return;
+    const timeoutId = window.setTimeout(() => { void load(allowed[0]); }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [allowed, load]);
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let nextIndex = index;
@@ -140,7 +146,7 @@ export function WorkspaceOverview({ role }: { role: string }) {
   return <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6" aria-labelledby="workspace-heading">
     <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-xl shadow-slate-950/10">
       <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-red-400">Honda Operations</p><h2 id="workspace-heading" className="mt-1 text-xl font-black tracking-tight sm:text-2xl">Workspace Operasional</h2><p className="mt-1 max-w-2xl text-sm text-slate-400">Pantau bengkel, stok, pelanggan, dan keuangan dari satu ruang kerja.</p></div>
+        <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-red-400">Honda Operations</p><h2 id="workspace-heading" className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{scope === "dashboard" ? "Ringkasan Operasional" : "Modul Bisnis"}</h2><p className="mt-1 max-w-2xl text-sm text-slate-400">{scope === "dashboard" ? "Pantau indikator utama operasi bengkel dari satu ringkasan." : "Kelola pelanggan, servis, stok, vendor, keuangan, dan tindak lanjut."}</p></div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300"><span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />Sistem operasional aktif</div>
       </div>
       <div className="overflow-x-auto px-3 py-3 sm:px-4">
