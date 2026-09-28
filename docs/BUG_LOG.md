@@ -780,3 +780,34 @@ Scanner tidak dapat digunakan meskipun browser, HTTPS, dan Permissions-Policy te
 ### Perbaikan
 
 Gunakan konstruktor default `Html5Qrcode`, constraint kamera sederhana yang kompatibel, area baca barcode tetap lebih besar, dan tampilkan detail error library yang telah dibersihkan bila penyebab belum dapat dipetakan.
+
+### Verifikasi
+
+Konfigurasi dasar lulus typecheck, lint, regression test, build production, dan smoke test HTTP. Verifikasi pembacaan kamera fisik tetap memerlukan perangkat pengguna.
+
+## BUG-20260928-030 - Navigasi dan umpan balik katalog tidak lengkap pada layar mobile
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Dashboard responsive layout dan katalog
+- Severity: High
+
+### Gejala
+
+Sidebar utama disembunyikan di bawah breakpoint desktop tanpa navigasi pengganti. Pengguna mobile tidak dapat berpindah halaman dari UI. Katalog juga tidak membedakan kondisi memuat, gagal, dan data kosong.
+
+### Sumber
+
+Layout hanya menyediakan navigasi pada elemen `aside` dengan kelas `hidden lg:flex`. Pemanggilan katalog langsung mengganti data tanpa state loading dan error khusus, sementara empty state lama selalu aktif saat array kosong.
+
+### Dampak
+
+Navigasi mobile terputus, kegagalan API tampak seperti katalog kosong, dan pengguna dapat mengulang aksi karena tidak melihat proses pemuatan.
+
+### Perbaikan
+
+Tambah navigasi mobile sticky dengan deep link dan status halaman aktif. Tambah skeleton loading, alert error dengan retry, empty state dengan reset pencarian dan tambah produk, serta hilangkan empty state duplikat.
+
+### Verifikasi
+
+Typecheck, lint, 29 regression test, build production Docker, dan smoke test HTTP untuk `/`, `/catalog`, `/business`, serta `/api/health` lulus.

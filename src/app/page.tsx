@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccessibleDialog } from "@/components/AccessibleDialog";
 import { BarcodeScannerDialog, CatalogTools } from "@/components/CatalogTools";
+import { DashboardMobileNav } from "@/components/DashboardMobileNav";
 import { WorkspaceOverview } from "@/components/WorkspaceOverview";
 
 interface User { id: string; email: string; displayName: string; role: string }
@@ -41,6 +42,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState("");
   const [categories, setCategories] = useState<Reference[]>([]);
   const [models, setModels] = useState<Reference[]>([]);
   const [query, setQuery] = useState("");
@@ -71,8 +74,18 @@ export default function Home() {
   }
 
   const loadProducts = useCallback(async (search = query) => {
-    const result = await api<Product[]>(`/api/v1/catalog/products?query=${encodeURIComponent(search)}&pageSize=100`);
-    setProducts(result.data);
+    setProductsLoading(true);
+    setProductsError("");
+    setProducts([]);
+    try {
+      const result = await api<Product[]>(`/api/v1/catalog/products?query=${encodeURIComponent(search)}&pageSize=100`);
+      setProducts(result.data);
+    } catch (error) {
+      setProductsError(error instanceof Error ? error.message : "Katalog gagal dimuat");
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
   }, [query]);
   const handleBarcode = useCallback((value: string) => { setQuery(value); void loadProducts(value); }, [loadProducts]);
   const handleImported = useCallback(() => loadProducts(""), [loadProducts]);
@@ -169,13 +182,16 @@ export default function Home() {
         </aside>
         <div className="min-w-0">
           <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-slate-50/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-8"><div className="mx-auto flex max-w-[96rem] items-center justify-between gap-4"><div className="flex items-center gap-3 lg:hidden"><div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-800 font-black text-white">H</div><p className="text-sm font-black text-blue-950">Honda Workshop</p></div><div className="hidden lg:block"><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Operations dashboard</p><p className="mt-0.5 text-sm text-slate-500">Bengkel, katalog, dan inventori dalam satu tampilan.</p></div><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-bold text-slate-900">{user.displayName}</p><p className="text-xs capitalize text-slate-500">{user.role}</p></div><button onClick={logout} aria-label="Keluar dari sistem" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-800 lg:hidden">Keluar</button></div></div></header>
+          <DashboardMobileNav view={view} />
           <div id="main-content" className={`dashboard-page dashboard-page--${view} mx-auto max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8`}>
             <section className="dashboard-hero rounded-3xl px-5 py-6 text-white sm:px-7 sm:py-8"><p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Honda Workshop</p><div className="mt-4 flex flex-col justify-between gap-5 xl:flex-row xl:items-end"><div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">{view === "catalog" ? "Kelola katalog suku cadang." : view === "business" ? "Kelola modul bisnis bengkel." : "Kendalikan operasi bengkel."}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">{view === "catalog" ? "Cari, scan, impor, dan perbarui data sparepart dari satu halaman khusus." : view === "business" ? "Kelola pelanggan, servis, inventori, vendor, keuangan, dan tindak lanjut." : "Pantau ringkasan pekerjaan bengkel dan indikator operasional utama."}</p></div>{view !== "catalog" && <Link href="/catalog" className="inline-flex w-fit items-center rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-blue-950 transition hover:bg-amber-300">Buka Katalog</Link>}</div></section>
             <section id="catalog" className="dashboard-page-catalog mt-8" aria-labelledby="catalog-heading"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="dashboard-eyebrow">Catalog workspace</p><h2 id="catalog-heading" className="mt-1 text-2xl font-black tracking-tight">Katalog Suku Cadang</h2><p className="mt-1 text-sm text-slate-600">{products.length} produk ditampilkan. Cari, scan, atau tambah data baru.</p></div><button onClick={() => openProductForm(null)} className="dashboard-primary-button rounded-xl px-4 py-3 text-sm font-bold">Tambah Produk</button></div>
               <div className="dashboard-panel mt-5 rounded-2xl p-4 sm:p-5"><form onSubmit={(event) => { event.preventDefault(); void loadProducts(); }} role="search" className="flex flex-col gap-3 lg:flex-row"><div className="relative flex-1"><label htmlFor="catalog-search" className="sr-only">Cari produk</label><input id="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari kode, nama, atau barcode" className="dashboard-input w-full rounded-xl border px-4 py-3 pl-11" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="6" /><path d="m20 20-4.35-4.35" /></svg></div><button className="rounded-xl bg-blue-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800">Cari</button></form><CatalogTools onBarcode={handleBarcode} onImported={handleImported} onMessage={setMessage} /></div>
               {message && <p role="status" className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">{message}</p>}
+              {productsLoading && <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite" aria-busy="true"><span className="sr-only">Memuat katalog</span>{Array.from({ length: 3 }, (_, index) => <div key={index} className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />)}</div>}
+              {!productsLoading && productsError && <div role="alert" className="mt-5 flex flex-col items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-5 sm:flex-row sm:items-center"><div className="flex-1"><h3 className="font-black text-red-950">Katalog belum dapat dimuat</h3><p className="mt-1 text-sm text-red-800">{productsError}</p></div><button type="button" onClick={() => void loadProducts()} className="min-h-11 rounded-xl bg-red-700 px-4 text-sm font-bold text-white hover:bg-red-800">Coba lagi</button></div>}
+              {!productsLoading && !productsError && products.length === 0 && <div className="mt-5 grid min-h-56 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center"><div><h3 className="font-black text-slate-900">Produk tidak ditemukan</h3><p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-600">Ubah kata pencarian, scan barcode, impor CSV, atau tambahkan produk baru.</p><div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row"><button type="button" onClick={() => { setQuery(""); void loadProducts(""); }} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Reset pencarian</button><button type="button" onClick={() => openProductForm(null)} className="dashboard-primary-button min-h-11 rounded-xl px-4 text-sm font-bold">Tambah produk</button></div></div></div>}
               <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{products.map((product) => <article key={product.id} className="dashboard-product-card rounded-2xl p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{product.category || "Tanpa kategori"}</p><h3 className="mt-2 truncate text-lg font-black text-slate-950">{product.name}</h3></div><button onClick={() => openProductForm(product)} className="rounded-lg px-2 py-1.5 text-sm font-bold text-blue-800 transition hover:bg-blue-50">Edit</button></div><code className="mt-5 block rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">{product.partCode}</code><div className="mt-5 flex items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Harga eceran</p><strong className="mt-1 block text-lg font-black text-blue-900">{money.format(product.het)}</strong></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${product.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{product.status === "active" ? "Aktif" : product.status === "archived" ? "Arsip" : "Nonaktif"}</span></div><p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-500">{product.compatibleModels.join(", ") || "Kompatibilitas belum diatur"}</p></article>)}</div>
-              {!products.length && <div className="dashboard-panel mt-5 rounded-2xl p-8 text-center"><p className="text-base font-black text-slate-900">Produk belum ditemukan</p><p className="mt-2 text-sm text-slate-500">Ubah kata kunci pencarian atau tambah produk baru.</p></div>}
             </section>
             <div id="workspace" className="dashboard-page-workspace mt-8"><WorkspaceOverview key={view} role={user.role} scope={view === "dashboard" ? "dashboard" : "business"} /></div>
           </div>

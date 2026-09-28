@@ -29,4 +29,11 @@ describe("accessibility regressions", () => {
     expect(styles).toContain("@media (max-width: 360px)");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
+
+  it("renders mobile page navigation and catalog feedback states", () => {
+    expect(page).toContain('<DashboardMobileNav view={view} />');
+    expect(page).toContain('Katalog belum dapat dimuat');
+    expect(page).toContain('Produk tidak ditemukan');
+    expect(page).toContain('aria-busy="true"');
+  });
 });
