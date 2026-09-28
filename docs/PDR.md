@@ -79,6 +79,13 @@ Seluruh user internal wajib login. Setiap mutation membutuhkan permission. Mecha
 - Top product, slow-moving, turnover, low stock, profit/margin.
 - Export laporan dengan range terbatas.
 
+### Point of Sale
+
+- Penjualan sparepart untuk pelanggan walk-in atau pelanggan terdaftar.
+- Pencarian cepat melalui nama, part code, barcode hardware, kamera, dan foto.
+- Cart, diskon, pajak, pembayaran tunai/non-tunai, kembalian, receipt, dan riwayat transaksi.
+- Posting stok dan pembayaran atomik, retry idempotent, void terkontrol, serta audit trail.
+
 ## 6. Workflow Utama
 
 - Service: Customer -> Vehicle -> Service Order -> Diagnosis -> Assign Mechanic -> Job/Part -> QC -> Invoice -> Payment -> Completed.

@@ -865,3 +865,30 @@ Validasi pasangan kendaraan-pelanggan, batasi diagnosis agar hanya memindahkan o
 ### Verifikasi
 
 Focused API regression test untuk service, inventory, dan receipt lulus sebagai bagian dari 66 test.
+
+## BUG-20260928-033 - Penjualan retail belum memiliki workflow POS terintegrasi
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: POS, katalog, inventori, pembayaran
+- Severity: Critical
+
+### Gejala
+
+Dashboard belum memiliki halaman POS, cart, checkout, receipt, pencatatan pembayaran retail, dan pengurangan stok yang terhubung dalam satu transaksi.
+
+### Sumber
+
+Phase sebelumnya hanya menyediakan katalog, service order, inventori, dan keuangan. Penjualan sparepart walk-in belum memiliki aggregate, API, permission, RLS, atau UI khusus.
+
+### Dampak
+
+Kasir tidak dapat menjalankan penjualan retail dari dashboard. Pencatatan manual berisiko membuat selisih stok, pembayaran ganda, harga tidak konsisten, dan transaksi tanpa audit.
+
+### Perbaikan
+
+Tambah domain POS dengan checkout atomik dan idempotent, stock ledger, payment record, receipt, void kompensasi, permission least privilege, forced RLS, UI responsif, barcode scanner, serta security test.
+
+### Verifikasi
+
+Typecheck, lint, 66 regression test, build Next.js, migration PostgreSQL, seed register, Docker production build, smoke HTTP, lifecycle checkout/idempotency/receipt/void, E2E penuh, dan security matrix POS lulus.

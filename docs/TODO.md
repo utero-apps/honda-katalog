@@ -17,6 +17,21 @@
 - [x] DOC-006 [P0] Master TODO.
 - [x] DOC-007 [P1] README aktual.
 - [x] DOC-008 [P1] Backup, restore, incident, release runbook.
+- [x] DOC-009 [P1] Rancangan POS, kontrak API, role matrix, dan acceptance criteria.
+
+## 0A. Point of Sale
+
+- [x] POS-001 [P0] Schema sale, item, payment, stock movement, constraint, index, dan forced RLS.
+- [x] POS-002 [P0] Permission POS dan assignment role least privilege.
+- [x] POS-003 [P0] Product lookup berbasis gudang, part code, nama, dan barcode.
+- [x] POS-004 [P0] Checkout atomik, server-calculated total, payment validation, dan idempotency.
+- [x] POS-005 [P0] Stock posting dan perlindungan saldo negatif/concurrency.
+- [x] POS-006 [P1] Riwayat sale dan receipt detail.
+- [x] POS-007 [P0] Void beralasan, stock compensation, permission, dan audit.
+- [x] POS-008 [P1] UI desktop/mobile untuk scan, search, cart, customer, dan payment.
+- [x] POS-009 [P1] Receipt print dan recovery retry tanpa duplikasi.
+- [x] POS-010 [P0] Unit, API, E2E, RLS, IDOR, replay, dan escalation tests.
+- [x] POS-011 [P0] Migration, production build, Docker smoke, dan route verification.
 
 ## 1. Foundation
 
