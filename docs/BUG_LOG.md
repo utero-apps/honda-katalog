@@ -730,3 +730,30 @@ Aktifkan format EAN, UPC, Code, ITF, Codabar, QR, dan Data Matrix secara eksplis
 ### Verifikasi
 
 Typecheck, lint, regression test scanner, build production Docker, endpoint health, dan halaman katalog lulus. Pembacaan kamera fisik tetap bergantung pada fokus dan kualitas webcam; fallback foto serta input manual tersedia.
+
+## BUG-20260928-028 - Pesan error scanner menyamarkan penyebab kegagalan kamera
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Catalog barcode scanner
+- Severity: High
+
+### Gejala
+
+Scanner menampilkan pesan bahwa kamera memerlukan HTTPS meskipun domain memakai HTTPS dan header izin kamera benar.
+
+### Sumber
+
+Pemanggilan `Html5Qrcode.getCameras()` dilakukan sebelum scanner dimulai. Kegagalan enumerasi kamera tertangkap oleh handler generik yang selalu menyebut HTTPS.
+
+### Dampak
+
+Pengguna menerima diagnosis keliru dan tidak mendapat tindakan tepat saat kamera ditolak, tidak ditemukan, sedang dipakai aplikasi lain, atau tidak mendukung konfigurasi.
+
+### Perbaikan
+
+Hapus enumerasi kamera sebelum start; gunakan constraint `facingMode` langsung; petakan error browser menjadi pesan spesifik dan dapat ditindaklanjuti.
+
+### Verifikasi
+
+HTTPS domain mengembalikan HTTP 200 dengan `Permissions-Policy: camera=(self)`. Typecheck, lint, 25 test, build Docker, dan endpoint katalog lokal serta domain lulus.

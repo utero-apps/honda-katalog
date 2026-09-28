@@ -29,6 +29,16 @@ function Spinner() {
   );
 }
 
+function cameraErrorMessage(reason: unknown) {
+  if (reason instanceof DOMException) {
+    if (["NotAllowedError", "SecurityError"].includes(reason.name)) return "Akses kamera ditolak. Izinkan kamera untuk situs ini pada browser dan pengaturan privasi sistem operasi.";
+    if (reason.name === "NotFoundError") return "Kamera tidak ditemukan. Hubungkan atau aktifkan kamera, lalu coba lagi.";
+    if (["NotReadableError", "TrackStartError"].includes(reason.name)) return "Kamera sedang dipakai aplikasi atau tab lain. Tutup aplikasi tersebut, lalu coba lagi.";
+    if (reason.name === "OverconstrainedError") return "Konfigurasi kamera tidak didukung. Coba pakai kamera lain atau scan dari foto.";
+  }
+  return "Scanner tidak dapat memulai kamera. Coba tutup dialog lalu buka kembali, atau gunakan scan dari foto.";
+}
+
 function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void; onClose: () => void }) {
   const rawId = useId();
   const scannerId = `scanner-${rawId.replaceAll(":", "")}`;
@@ -61,10 +71,8 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
           verbose: false,
         });
         scanner.current = instance;
-        const cameras = await scannerLibrary.Html5Qrcode.getCameras();
-        const preferredCamera = cameras.find((camera) => /(back|rear|environment|belakang)/i.test(camera.label));
         await instance.start(
-          preferredCamera?.id ?? { facingMode: { ideal: "environment" } },
+          { facingMode: { ideal: "environment" } },
           {
             fps: 20,
             aspectRatio: 16 / 9,
@@ -78,10 +86,10 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
           () => undefined,
         );
         if (!cancelled) setStarting(false);
-      } catch {
+      } catch (reason) {
         if (!cancelled) {
           setStarting(false);
-          setError("Kamera tidak dapat dibuka. Pastikan akses kamera diizinkan dan halaman memakai HTTPS.");
+          setError(cameraErrorMessage(reason));
         }
       }
     };

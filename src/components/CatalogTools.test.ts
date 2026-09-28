@@ -11,11 +11,14 @@ describe("catalog barcode scanner", () => {
     expect(scanner).toContain("useBarCodeDetectorIfSupported: true");
     expect(scanner).toContain("fps: 20");
     expect(scanner).toContain("Math.floor(width * 0.92)");
+    expect(scanner).not.toContain("Html5Qrcode.getCameras()");
   });
 
   it("provides photo and manual fallbacks", () => {
     expect(scanner).toContain('capture="environment"');
     expect(scanner).toContain("scanFile(file, false)");
     expect(scanner).toContain("Masukkan barcode manual");
+    expect(scanner).toContain("Akses kamera ditolak.");
+    expect(scanner).toContain("Kamera sedang dipakai aplikasi atau tab lain.");
   });
 });
