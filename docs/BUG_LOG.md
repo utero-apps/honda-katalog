@@ -757,3 +757,26 @@ Hapus enumerasi kamera sebelum start; gunakan constraint `facingMode` langsung; 
 ### Verifikasi
 
 HTTPS domain mengembalikan HTTP 200 dengan `Permissions-Policy: camera=(self)`. Typecheck, lint, 25 test, build Docker, dan endpoint katalog lokal serta domain lulus.
+
+## BUG-20260928-029 - Konfigurasi decoder scanner memicu kegagalan start kamera
+
+- Tanggal: 28 September 2026
+- Status: Fixed and pending verification
+- Area: Catalog barcode scanner
+- Severity: High
+
+### Gejala
+
+Setelah pesan error diperjelas, scanner tetap gagal memulai kamera pada localhost dan domain HTTPS.
+
+### Sumber
+
+Konfigurasi lanjutan decoder dan camera constraints ditambahkan ke alur start, padahal konfigurasi dasar sebelumnya berhasil membuka preview kamera. Error library tidak selalu berupa `DOMException`, sehingga pesan awal masih terlalu umum.
+
+### Dampak
+
+Scanner tidak dapat digunakan meskipun browser, HTTPS, dan Permissions-Policy telah valid.
+
+### Perbaikan
+
+Gunakan konstruktor default `Html5Qrcode`, constraint kamera sederhana yang kompatibel, area baca barcode tetap lebih besar, dan tampilkan detail error library yang telah dibersihkan bila penyebab belum dapat dipetakan.

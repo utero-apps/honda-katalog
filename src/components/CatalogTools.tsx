@@ -30,13 +30,15 @@ function Spinner() {
 }
 
 function cameraErrorMessage(reason: unknown) {
-  if (reason instanceof DOMException) {
-    if (["NotAllowedError", "SecurityError"].includes(reason.name)) return "Akses kamera ditolak. Izinkan kamera untuk situs ini pada browser dan pengaturan privasi sistem operasi.";
-    if (reason.name === "NotFoundError") return "Kamera tidak ditemukan. Hubungkan atau aktifkan kamera, lalu coba lagi.";
-    if (["NotReadableError", "TrackStartError"].includes(reason.name)) return "Kamera sedang dipakai aplikasi atau tab lain. Tutup aplikasi tersebut, lalu coba lagi.";
-    if (reason.name === "OverconstrainedError") return "Konfigurasi kamera tidak didukung. Coba pakai kamera lain atau scan dari foto.";
-  }
-  return "Scanner tidak dapat memulai kamera. Coba tutup dialog lalu buka kembali, atau gunakan scan dari foto.";
+  const name = reason instanceof Error ? reason.name : "";
+  const message = reason instanceof Error ? reason.message : String(reason ?? "");
+  const signal = `${name} ${message}`.toLowerCase();
+  if (/notallowed|security|permission|denied/.test(signal)) return "Akses kamera ditolak. Izinkan kamera untuk situs ini pada browser dan pengaturan privasi sistem operasi.";
+  if (/notfound|not found|no camera/.test(signal)) return "Kamera tidak ditemukan. Hubungkan atau aktifkan kamera, lalu coba lagi.";
+  if (/notreadable|trackstart|device in use|could not start video/.test(signal)) return "Kamera sedang dipakai aplikasi atau tab lain. Tutup aplikasi tersebut, lalu coba lagi.";
+  if (/overconstrained|constraint/.test(signal)) return "Konfigurasi kamera tidak didukung. Coba pakai kamera lain atau scan dari foto.";
+  const detail = message.replace(/\s+/g, " ").trim().slice(0, 160);
+  return detail ? `Scanner gagal membuka kamera: ${detail}` : "Scanner gagal membuka kamera. Gunakan scan dari foto atau input manual.";
 }
 
 function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void; onClose: () => void }) {
@@ -64,23 +66,14 @@ function Scanner({ onDetected, onClose }: { onDetected: (value: string) => void;
       try {
         const scannerLibrary = await import("html5-qrcode");
         if (cancelled) return;
-        const formats = scannerLibrary.Html5QrcodeSupportedFormats;
-        const instance = new scannerLibrary.Html5Qrcode(scannerId, {
-          formatsToSupport: [formats.EAN_13, formats.EAN_8, formats.UPC_A, formats.UPC_E, formats.CODE_128, formats.CODE_39, formats.CODE_93, formats.ITF, formats.CODABAR, formats.QR_CODE, formats.DATA_MATRIX],
-          useBarCodeDetectorIfSupported: true,
-          verbose: false,
-        });
+        const instance = new scannerLibrary.Html5Qrcode(scannerId);
         scanner.current = instance;
         await instance.start(
-          { facingMode: { ideal: "environment" } },
+          { facingMode: "environment" },
           {
-            fps: 20,
-            aspectRatio: 16 / 9,
+            fps: 10,
             disableFlip: false,
-            qrbox: (width, height) => ({
-              width: Math.max(180, Math.min(width - 24, Math.floor(width * 0.92))),
-              height: Math.max(100, Math.min(height - 24, Math.floor(height * 0.42))),
-            }),
+            qrbox: { width: 280, height: 140 },
           },
           finish,
           () => undefined,
