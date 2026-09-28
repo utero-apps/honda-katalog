@@ -210,3 +210,13 @@
 - [ ] SOW-008 [P0] Verifikasi handover menyimpan penerima/waktu keluar dan memblokir invoice belum lunas.
 - [ ] SOW-009 [P1] Jalankan E2E workflow pada Docker/database setelah hardening P0 selesai.
 - [ ] SOW-010 [P0] Perbaiki handover agar menerima Service Order `paid` setelah payment atomik.
+
+## 12. Page 6 - Inventory Management
+
+- [x] INV6-001 [P0] Dashboard inventory khusus dengan filter gudang dan periode.
+- [x] INV6-002 [P0] KPI total item, nilai inventory, barang masuk/keluar, dan low-stock.
+- [x] INV6-003 [P0] Ledger movement dengan filter dan redaksi HPP berbasis role.
+- [x] INV6-004 [P1] Grafik pergerakan, top sparepart terpakai, dan alert low-stock.
+- [x] INV6-005 [P0] Read model Purchase Order, receiving, dan stock opname.
+- [x] INV6-006 [P0] Dialog adjustment, Purchase Order, receiving, dan mulai opname.
+- [x] INV6-007 [P0] Unit/API tests, lint, typecheck, E2E inventory, dan Docker smoke.
