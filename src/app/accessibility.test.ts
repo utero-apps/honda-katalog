@@ -39,7 +39,7 @@ describe("accessibility regressions", () => {
   });
 
   it("keeps business workflow navigation and feedback accessible", () => {
-    expect(businessWorkspace).toContain('aria-label="Navigasi modul bisnis"');
+    expect(page).toContain('aria-label="Modul bisnis"');
     expect(businessWorkspace).toContain('role="alert"');
     expect(businessWorkspace).toContain('aria-live="polite"');
     expect(businessWorkspace).toContain('data-dialog-initial-focus');
