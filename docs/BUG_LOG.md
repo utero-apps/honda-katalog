@@ -892,3 +892,30 @@ Tambah domain POS dengan checkout atomik dan idempotent, stock ledger, payment r
 ### Verifikasi
 
 Typecheck, lint, 66 regression test, build Next.js, migration PostgreSQL, seed register, Docker production build, smoke HTTP, lifecycle checkout/idempotency/receipt/void, E2E penuh, dan security matrix POS lulus.
+
+## BUG-20260928-034 - Penerimaan motor belum memiliki workflow customer dan vehicle terpadu
+
+- Tanggal: 28 September 2026
+- Status: Fixed and verified
+- Area: Customer, vehicle, service order, reception
+- Severity: Critical
+
+### Gejala
+
+Kasir belum dapat mencari pelanggan lewat telepon atau plat, membuat pelanggan dan motor dalam satu flow, mencatat kondisi motor, memilih jenis service, lalu membuka Service Order secara atomik.
+
+### Sumber
+
+Customer, vehicle, dan Service Order tersedia sebagai endpoint terpisah. Belum ada aggregate Service Reception, histori odometer immutable, service type formal, recommendation, atau wizard penerimaan.
+
+### Dampak
+
+Data pelanggan dapat terduplikasi, motor kedua sulit dicatat, kilometer dan keluhan tidak konsisten, serta proses penerimaan bergantung pada perpindahan halaman dan input manual.
+
+### Perbaikan
+
+Tambah route `/service/reception` dengan wizard lima langkah, pencarian customer/plat, create customer/vehicle, checklist kondisi, empat service type, recommendation, draft recovery, dan Service Order atomik. Tambah ledger odometer immutable, correction reason, actor-scoped idempotency, deterministic request hash, duplicate-race mapping, ownership non-disclosure, forced RLS, audit, serta navigasi Dashboard/POS.
+
+### Verifikasi
+
+Typecheck, lint, 66 regression test, 4 Service Reception integration test, production build, migration PostgreSQL `007` dan `008`, forced RLS 45 tabel, Docker rebuild, health/page smoke HTTP 200, API E2E lintas fase, dan security matrix reception lulus.

@@ -37,6 +37,23 @@ await request(`/api/v1/operations/service-orders/${order.id}/status`, { method: 
 await request(`/api/v1/operations/service-orders/${order.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "quality_check" }) });
 const profile = await request(`/api/v1/operations/customers/${customer.id}/profile`);
 if (profile.body.data.orders[0]?.id !== order.id) throw new Error("Service history tidak terhubung");
+if (process.env.SERVICE_RECEPTION_E2E_ENABLED === "true") {
+  const receptionPhone = `0818${Date.now().toString().slice(-8)}`;
+  const receptionSuffix = `${suffix}R`;
+  const receptionBase = "/api/v1/operations/service-reception";
+  const receptionCustomer = (await request(`${receptionBase}/customers`, { method: "POST", body: JSON.stringify({ name: `Pelanggan Reception ${receptionSuffix}`, phone: receptionPhone }) })).body.data;
+  const duplicateCustomer = await fetch(`${baseUrl}${receptionBase}/customers`, { method: "POST", headers: { "content-type": "application/json", origin: baseUrl, cookie }, body: JSON.stringify({ name: `Duplikat ${receptionSuffix}`, phone: receptionPhone }) });
+  if (duplicateCustomer.status !== 409) throw new Error(`Duplikat customer reception tidak ditolak: ${duplicateCustomer.status}`);
+  const receptionVehicle = (await request(`${receptionBase}/vehicles`, { method: "POST", body: JSON.stringify({ customerId: receptionCustomer.id, plateNumber: `REC${receptionSuffix.slice(-6)}`, odometer: 25000 }) })).body.data;
+  const duplicateVehicle = await fetch(`${baseUrl}${receptionBase}/vehicles`, { method: "POST", headers: { "content-type": "application/json", origin: baseUrl, cookie }, body: JSON.stringify({ customerId: receptionCustomer.id, plateNumber: receptionVehicle.plateNumber.toLowerCase(), odometer: 25000 }) });
+  if (duplicateVehicle.status !== 409) throw new Error(`Duplikat plat reception tidak ditolak: ${duplicateVehicle.status}`);
+  const searched = (await request(`${receptionBase}/search?query=${encodeURIComponent(receptionVehicle.plateNumber.replaceAll("-", ""))}`)).body.data;
+  if (!searched.some((item) => item.id === receptionCustomer.id && item.vehicles?.some((vehicle) => vehicle.id === receptionVehicle.id))) throw new Error("Search reception tidak menemukan kendaraan milik pelanggan");
+  const receptionPayload = { customerId: receptionCustomer.id, vehicleId: receptionVehicle.id, serviceType: "routine", complaint: "Pemeriksaan reception E2E", odometer: 25100, checklist: { fuelLevel: 50, physicalCondition: "Kondisi normal", belongings: ["Helm"], notes: "E2E" }, idempotencyKey: `reception-order-${receptionSuffix}` };
+  const receptionOrder = (await request(`${receptionBase}/orders`, { method: "POST", body: JSON.stringify(receptionPayload) })).body.data;
+  const replayedReceptionOrder = (await request(`${receptionBase}/orders`, { method: "POST", body: JSON.stringify(receptionPayload) })).body.data;
+  if (receptionOrder.id !== replayedReceptionOrder.id || receptionOrder.status !== "open") throw new Error("Atomic order atau idempotency reception gagal");
+}
 const vendor = (await request("/api/v1/business/vendors", { method: "POST", body: JSON.stringify({ code: `V-${suffix}`, name: "Vendor E2E" }) })).body.data;
 const purchaseOrder = (await request("/api/v1/business/purchase-orders", { method: "POST", body: JSON.stringify({ orderNumber: `PO-${suffix}`, vendorId: vendor.id, items: [{ productId: product.id, quantity: 5, unitPrice: 7000 }] }) })).body.data;
 await request(`/api/v1/business/purchase-orders/${purchaseOrder.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "submitted" }) });

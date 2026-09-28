@@ -33,6 +33,21 @@
 - [x] POS-010 [P0] Unit, API, E2E, RLS, IDOR, replay, dan escalation tests.
 - [x] POS-011 [P0] Migration, production build, Docker smoke, dan route verification.
 
+## 0B. Service Reception
+
+- [x] SR-001 [P0] Rancangan reception dan kontrak domain.
+- [x] SR-002 [P0] Schema service type, reception, odometer log, recommendation, index, dan forced RLS.
+- [x] SR-003 [P0] Search customer melalui nama, telepon, dan plat nomor.
+- [x] SR-004 [P0] Create customer dengan validasi duplicate contact.
+- [x] SR-005 [P0] Create vehicle dengan normalized unique plate dan ownership.
+- [x] SR-006 [P0] Odometer validation, immutable history, dan correction reason.
+- [x] SR-007 [P0] Atomic idempotent reception dan Service Order creation.
+- [x] SR-008 [P1] Recommendation berdasarkan service type dan histori.
+- [x] SR-009 [P1] Responsive accessible reception wizard dan draft recovery.
+- [x] SR-010 [P1] Dashboard/POS navigation menuju penerimaan service.
+- [x] SR-011 [P0] Unit/API/E2E/RLS/IDOR/origin/replay/rollback tests.
+- [x] SR-012 [P0] Migration, production build, Docker smoke, dan route verification.
+
 ## 1. Foundation
 
 - [x] FND-001 [P0] Upgrade Next.js patched dan lockfile.
