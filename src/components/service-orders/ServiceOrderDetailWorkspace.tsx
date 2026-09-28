@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BarcodeScannerDialog } from "@/components/CatalogTools";
 import { ServiceOrderContextPanels } from "@/components/service-orders/ServiceOrderContextPanels";
+import { HandoverAssetsPanel } from "@/components/service-orders/handover";
 import {
   useCallback,
   useEffect,
@@ -15,7 +16,6 @@ import {
 import type {
   ApiEnvelope,
   ServiceOrderWorkflow,
-  WorkflowItem,
 } from "./service-order-types";
 
 const money = new Intl.NumberFormat("id-ID", {
@@ -28,26 +28,17 @@ const date = new Intl.DateTimeFormat("id-ID", {
   timeStyle: "short",
 });
 const stages = [
-  "open",
-  "diagnosed",
-  "in_progress",
-  "quality_check",
-  "invoiced",
-  "paid",
-  "handed_over",
-];
-const stageByStatus: Record<string, number> = {
-  open: 0,
-  assigned: 1,
-  diagnosed: 1,
-  in_progress: 2,
-  waiting_parts: 2,
-  quality_check: 3,
-  completed: 6,
-  invoiced: 4,
-  paid: 5,
-  handed_over: 6,
-};
+  { key: "received", label: "Motor datang" },
+  { key: "customer_vehicle", label: "Pelanggan & kendaraan" },
+  { key: "diagnosed", label: "Keluhan & diagnosis" },
+  { key: "assigned", label: "Assign mekanik" },
+  { key: "started", label: "Pengerjaan servis" },
+  { key: "work_done", label: "Sparepart & jasa" },
+  { key: "qc_passed", label: "Quality check" },
+  { key: "invoiced", label: "Invoice" },
+  { key: "paid", label: "Pembayaran" },
+  { key: "handed_over", label: "Motor keluar" },
+] as const;
 const labels: Record<string, string> = {
   open: "Diterima",
   diagnosed: "Diagnosis",
@@ -206,6 +197,34 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
     order.diagnosis?.findings || order.diagnosis?.notes,
   );
   const approved = Boolean(order.estimate?.approvedAt);
+  const qcPassed = order.qualityControl?.status === "passed";
+  const handedOver = Boolean(order.handover?.handedOverAt);
+  const paid = Boolean(order.invoice && order.invoice.status !== "reversed" && (order.invoice.status === "paid" || (number(order.invoice.total) > 0 && number(order.invoice.outstandingAmount) <= 0)));
+  const invoiced = Boolean(order.invoice && order.invoice.status !== "reversed");
+  const workDone = order.repairSummary?.completedWork ?? Boolean((order.jobs?.length || order.parts?.length) && (order.jobs ?? []).every((item) => item.status === "completed") && (order.parts ?? []).every((item) => Boolean(item.consumedAt)));
+  const stageDone: Record<(typeof stages)[number]["key"], boolean> = {
+    received: true,
+    customer_vehicle: Boolean(order.customer?.id && order.vehicle?.id),
+    assigned: Boolean(order.assignedMechanicId),
+    diagnosed: hasDiagnosis,
+    started: approved && (["in_progress", "quality_check", "invoiced", "paid", "completed"].includes(order.status) || Boolean(order.jobs?.length || order.parts?.length)),
+    work_done: workDone || qcPassed,
+    qc_passed: qcPassed,
+    invoiced,
+    paid,
+    handed_over: handedOver,
+  };
+  const completedStageCount = stages.filter((stage) => stageDone[stage.key]).length;
+  const currentStage = stages.find((stage) => !stageDone[stage.key])?.key;
+  const mechanicNames = new Map((order.mechanics ?? []).map((mechanic) => [mechanic.id, mechanic.name]));
+  const repairItems = [
+    ...(order.jobs ?? []).map((item) => ({ ...item, kind: "Jasa" as const })),
+    ...(order.parts ?? []).map((item) => ({ ...item, kind: "Sparepart" as const })),
+  ];
+  const completedJobs = order.repairSummary?.completedJobs ?? (order.jobs ?? []).filter((item) => item.status === "completed").length;
+  const usedParts = order.repairSummary?.partsUsed ?? (order.parts ?? []).filter((item) => Boolean(item.consumedAt)).length;
+  const totalJobs = order.repairSummary?.totalJobs ?? order.jobs?.length ?? 0;
+  const totalRepair = number(order.repairSummary?.total ?? order.estimate?.total ?? totals.jobs + totals.parts);
   return (
     <PageShell>
       <header className="border-b border-slate-200 bg-white">
@@ -228,8 +247,22 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 {customerName}
                 {order.customerPhone ? ` · ${order.customerPhone}` : ""}
               </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Masuk {dateTime(order.openedAt) || "belum tercatat"}
+                {order.targetCompletionAt ? ` · Target ${dateTime(order.targetCompletionAt)}` : ""}
+              </p>
             </div>
-            <StatusBadge status={order.status} />
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/business/service-orders/${orderId}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                Cetak job card / nota
+              </Link>
+              <StatusBadge status={order.status} />
+            </div>
           </div>
         </div>
       </header>
@@ -242,25 +275,28 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
             <h2 id="progress-title" className="text-lg font-black">
               Progress pekerjaan
             </h2>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+            <p className="mt-1 text-sm text-slate-600" role="status">
+              {order.status === "cancelled" ? "Order dibatalkan" : `${completedStageCount} dari ${stages.length} tahap tercatat selesai`}
+            </p>
+            <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
               {stages.map((stage, index) => {
-                const current = stageByStatus[order.status] ?? 0;
-                const done = index <= current;
+                const done = stageDone[stage.key];
+                const current = order.status !== "cancelled" && stage.key === currentStage;
                 return (
-                  <div
-                    key={stage}
-                    className={`rounded-xl border p-3 ${done ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"}`}
+                  <li
+                    key={stage.key}
+                    aria-current={current ? "step" : undefined}
+                    className={`rounded-xl border p-3 ${done ? "border-emerald-200 bg-emerald-50 text-emerald-950" : current ? "border-blue-300 bg-blue-50 text-blue-950" : "border-slate-200 bg-slate-50 text-slate-700"}`}
                   >
-                    <span
-                      className={`grid size-7 place-items-center rounded-full text-xs font-black ${done ? "bg-blue-700 text-white" : "bg-slate-200 text-slate-600"}`}
-                    >
+                    <span className={`grid size-7 place-items-center rounded-full text-xs font-black ${done ? "bg-emerald-700 text-white" : current ? "bg-blue-700 text-white" : "bg-slate-200 text-slate-700"}`}>
                       {index + 1}
                     </span>
-                    <p className="mt-2 text-xs font-bold">{labels[stage]}</p>
-                  </div>
+                    <p className="mt-2 text-sm font-bold">{stage.label}</p>
+                    <p className="mt-1 text-xs font-semibold">{done ? "Selesai" : current ? "Berikutnya" : "Belum selesai"}</p>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
             {["open", "assigned"].includes(order.status) && (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-black text-amber-950">
@@ -331,6 +367,11 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 value={order.customerPhone ?? order.customer?.phone ?? "-"}
               />
               <Data label="Kendaraan" value={`${plate} · ${model}`} />
+              <Data label="Tahun" value={order.vehicle?.year ?? "Belum dicatat"} />
+              <Data label="Alamat" value={order.customerAddress ?? order.customer?.address ?? "Belum dicatat"} />
+              <Data label="Tanggal masuk" value={dateTime(order.openedAt) || "Belum dicatat"} />
+              <Data label="Target selesai" value={dateTime(order.targetCompletionAt) || "Belum dijadwalkan"} />
+              <Data label="Tanggal selesai" value={dateTime(order.completedAt ?? order.handover?.handedOverAt) || "Belum selesai"} />
               <Data
                 label="Odometer"
                 value={
@@ -371,48 +412,14 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
           </div>
           <ServiceOrderContextPanels orderId={order.id} vehicleId={order.vehicle?.id} />
           <div className="grid gap-5 xl:grid-cols-2">
-            <LineItems
-              title="Pekerjaan / jasa"
-              items={order.jobs ?? []}
-              empty="Belum ada pekerjaan."
-              total={totals.jobs}
-              itemAction={
-                order.status === "in_progress"
-                  ? {
-                      label: "Selesaikan pekerjaan",
-                      isAvailable: (item) => item.status !== "completed",
-                      onClick: (item) =>
-                        item.id && void mutate("complete_job", { jobId: item.id }),
-                    }
-                  : undefined
-              }
-            >
+            <InfoCard title="Tambah pekerjaan / jasa">
               <QuickLineForm
                 kind="job"
                 busy={busy === "add_job"}
                 onSubmit={(payload) => void mutate("add_job", payload)}
               />
-            </LineItems>
-            <LineItems
-              title="Sparepart"
-              items={order.parts ?? []}
-              empty="Belum ada sparepart."
-              total={totals.parts}
-              itemAction={
-                order.status === "in_progress"
-                  ? {
-                      label: "Gunakan sparepart",
-                      isAvailable: (item) => !item.consumedAt,
-                      onClick: (item) =>
-                        item.id &&
-                        void mutate("consume_part", {
-                          partId: item.id,
-                          idempotencyKey: crypto.randomUUID(),
-                        }),
-                    }
-                  : undefined
-              }
-            >
+            </InfoCard>
+            <InfoCard title="Tambah sparepart">
               <QuickLineForm
                 kind="part"
                 busy={busy === "add_part"}
@@ -420,8 +427,100 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 disabledMessage="Sparepart dapat ditambahkan setelah tombol Mulai pengerjaan ditekan."
                 onSubmit={(payload) => void mutate("add_part", payload)}
               />
-            </LineItems>
+            </InfoCard>
           </div>
+          <InfoCard title="Daftar pekerjaan & sparepart">
+            {repairItems.length ? (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
+                  <caption className="sr-only">Rincian jenis, deskripsi, mekanik, estimasi biaya, dan status pekerjaan</caption>
+                  <thead className="bg-slate-100 text-slate-700">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 font-bold">Jenis</th>
+                      <th scope="col" className="px-4 py-3 font-bold">Deskripsi</th>
+                      <th scope="col" className="px-4 py-3 font-bold">Mekanik</th>
+                      <th scope="col" className="px-4 py-3 text-right font-bold">Estimasi</th>
+                      <th scope="col" className="px-4 py-3 font-bold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {repairItems.map((item, index) => (
+                      <tr key={`${item.kind}-${item.id ?? index}`} className="align-top hover:bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{item.kind}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-950">{item.name ?? "Tanpa nama"}</p>
+                          {item.description && <p className="mt-1 max-w-md whitespace-pre-wrap text-slate-700">{item.description}</p>}
+                          <p className="mt-1 text-xs text-slate-600">
+                            {item.partCode ? `${item.partCode} · ` : ""}{number(item.quantity ?? 1)} {item.unit ?? (item.kind === "Jasa" ? "jasa" : "unit")}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {item.kind === "Jasa" ? item.mechanicName ?? mechanicNames.get(item.mechanicId ?? "") ?? order.assignedMechanicName ?? "Belum ditugaskan" : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-slate-950">
+                          {money.format(number(item.subtotal ?? number(item.price ?? item.unitPrice) * number(item.quantity ?? 1)))}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${item.kind === "Jasa" ? item.status === "completed" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950" : item.consumedAt ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950"}`}>
+                            {item.kind === "Jasa" ? item.status === "completed" ? "Selesai" : "Belum selesai" : item.consumedAt ? "Terpakai" : "Belum dipakai"}
+                          </span>
+                          {order.status === "in_progress" && item.id && item.kind === "Jasa" && item.status !== "completed" && (
+                            <button type="button" onClick={() => void mutate("complete_job", { jobId: item.id })} className="mt-2 block min-h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800">
+                              Selesaikan pekerjaan
+                            </button>
+                          )}
+                          {order.status === "in_progress" && item.id && item.kind === "Sparepart" && !item.consumedAt && (
+                            <button type="button" onClick={() => void mutate("consume_part", { partId: item.id, idempotencyKey: crypto.randomUUID() })} className="mt-2 block min-h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800">
+                              Gunakan sparepart
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-700">Pekerjaan dan sparepart belum dicatat.</p>
+            )}
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-600">Pekerjaan selesai</p>
+                <p className="mt-1 text-lg font-black tabular-nums text-slate-950">{completedJobs} / {totalJobs}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-600">Sparepart terpakai</p>
+                <p className="mt-1 text-lg font-black tabular-nums text-slate-950">{usedParts} / {order.parts?.length ?? 0}</p>
+              </div>
+              <div className="rounded-xl bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-900">Estimasi perbaikan</p>
+                <p className="mt-1 text-lg font-black tabular-nums text-blue-950">{money.format(totalRepair)}</p>
+              </div>
+            </div>
+          </InfoCard>
+          <InfoCard title="Ringkasan perbaikan">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-slate-600">Keluhan pelanggan</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{order.complaint || "Belum dicatat."}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-slate-600">Hasil diagnosis</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{diagnosisText || "Belum dicatat."}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-slate-600">Pemeriksaan akhir</p>
+                <p className="mt-1 text-sm leading-6 text-slate-800">{order.qualityControl?.notes || (qcPassed ? "QC lulus." : "Menunggu QC.")}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-slate-600">Serah terima</p>
+                <p className="mt-1 text-sm leading-6 text-slate-800">
+                  {handedOver ? `${dateTime(order.handover?.handedOverAt)} · ${order.handover?.recipientName ?? "Penerima belum dicatat"}` : "Motor belum diserahkan."}
+                </p>
+                {order.handover?.notes && <p className="mt-1 text-sm leading-6 text-slate-700">{order.handover.notes}</p>}
+              </div>
+            </div>
+          </InfoCard>
           <InfoCard title="Timeline">
             <ol className="relative ml-3 border-l border-slate-200 pl-6">
               {(order.timeline ?? []).length ? (
@@ -465,20 +564,18 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
           <InfoCard title="Estimasi">
             <Data
               label="Jasa"
-              value={money.format(number(order.estimate?.labor ?? totals.jobs))}
+              value={money.format(number(order.repairSummary?.labor ?? order.estimate?.labor ?? totals.jobs))}
             />
             <Data
               label="Sparepart"
               value={money.format(
-                number(order.estimate?.parts ?? totals.parts),
+                number(order.repairSummary?.parts ?? order.estimate?.parts ?? totals.parts),
               )}
             />
             <div className="mt-3 flex justify-between border-t pt-3">
               <span className="font-bold">Total</span>
               <strong className="text-xl">
-                {money.format(
-                  number(order.estimate?.total ?? totals.jobs + totals.parts),
-                )}
+                {money.format(totalRepair)}
               </strong>
             </div>
           </InfoCard>
@@ -492,10 +589,10 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
             invoice={order.invoice}
             onCreated={load}
           />
-          <Handover
-            value={order.handover}
-            busy={busy === "handover"}
-            onSubmit={(payload) => void mutate("handover", payload)}
+          <HandoverAssetsPanel
+            orderId={orderId}
+            defaultRecipientName={order.customer?.name ?? ""}
+            onCompleted={load}
           />
           {message && (
             <p
@@ -609,71 +706,6 @@ function AssignMechanic({
         {busy ? "Menugaskan…" : "Assign mekanik"}
       </button>
     </div>
-  );
-}
-function LineItems({
-  title,
-  items,
-  empty,
-  total,
-  itemAction,
-  children,
-}: {
-  title: string;
-  items: WorkflowItem[];
-  empty: string;
-  total: number;
-  itemAction?: {
-    label: string;
-    isAvailable: (item: WorkflowItem) => boolean;
-    onClick: (item: WorkflowItem) => void;
-  };
-  children: ReactNode;
-}) {
-  return (
-    <InfoCard title={title}>
-      {items.length ? (
-        <ul className="divide-y divide-slate-100">
-          {items.map((item, index) => (
-            <li
-              key={item.id ?? index}
-              className="flex justify-between gap-4 py-3"
-            >
-              <div>
-                <p className="font-bold">{item.name}</p>
-                <p className="text-xs text-slate-500">
-                  {number(item.quantity)} {item.unit ?? "unit"} ×{" "}
-                  {money.format(number(item.price))}
-                </p>
-                {itemAction?.isAvailable(item) && (
-                  <button
-                    type="button"
-                    onClick={() => itemAction.onClick(item)}
-                    className="mt-2 min-h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800"
-                  >
-                    {itemAction.label}
-                  </button>
-                )}
-              </div>
-              <strong className="text-sm">
-                {money.format(
-                  number(
-                    item.subtotal ?? number(item.quantity) * number(item.price),
-                  ),
-                )}
-              </strong>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-slate-500">{empty}</p>
-      )}
-      <div className="mt-3 flex justify-between border-t pt-3">
-        <span className="text-sm font-bold">Subtotal</span>
-        <strong>{money.format(total)}</strong>
-      </div>
-      {children}
-    </InfoCard>
   );
 }
 function QuickLineForm({
@@ -1035,59 +1067,6 @@ function InvoiceCard({
         <p role="alert" className="mt-2 text-sm font-bold text-red-700">
           {error}
         </p>
-      )}
-    </InfoCard>
-  );
-}
-function Handover({
-  value,
-  busy,
-  onSubmit,
-}: {
-  value: ServiceOrderWorkflow["handover"];
-  busy: boolean;
-  onSubmit: (payload: Record<string, unknown>) => void;
-}) {
-  return (
-    <InfoCard title="Serah terima">
-      {value?.handedOverAt ? (
-        <>
-          <Data label="Penerima" value={value.recipientName ?? "-"} />
-          <Data
-            label="Waktu"
-            value={date.format(new Date(value.handedOverAt ?? 0))}
-          />
-          <p className="mt-2 text-sm text-slate-600">{value.notes}</p>
-        </>
-      ) : (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            onSubmit({
-              recipientName: form.get("recipientName"),
-              notes: form.get("notes"),
-            });
-          }}
-        >
-          <input
-            name="recipientName"
-            required
-            placeholder="Nama penerima motor"
-            className="min-h-11 w-full rounded-xl border border-slate-300 px-3"
-          />
-          <textarea
-            name="notes"
-            placeholder="Catatan serah terima"
-            className="mt-2 min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm"
-          />
-          <button
-            disabled={busy}
-            className="mt-2 min-h-11 w-full rounded-xl bg-red-600 px-4 text-sm font-bold text-white disabled:opacity-50"
-          >
-            Konfirmasi motor keluar
-          </button>
-        </form>
       )}
     </InfoCard>
   );

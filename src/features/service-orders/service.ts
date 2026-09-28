@@ -73,15 +73,15 @@ export async function getWorkflow(client: PoolClient, id: string) {
       s.assigned_mechanic_id AS "assignedMechanicId",s.approved_at AS "approvedAt",s.approved_by AS "approvedBy",s.approval_notes AS "approvalNotes",
       s.target_completion_at AS "targetCompletionAt",s.handed_over_at AS "handedOverAt",s.handed_over_by AS "handedOverBy",
       s.handover_recipient_name AS "handoverRecipientName",s.handover_signature_reference AS "handoverSignatureReference",s.handover_notes AS "handoverNotes",
-      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",v.id AS "vehicleId",v.plate_number AS "plateNumber",v.image_url AS "imageUrl",vm.name AS model,
+      c.id AS "customerId",c.name AS "customerName",c.phone AS "customerPhone",c.address AS "customerAddress",v.id AS "vehicleId",v.plate_number AS "plateNumber",v.year AS "vehicleYear",v.image_url AS "imageUrl",vm.name AS model,
       assigned_user.display_name AS "assignedMechanicName"
      FROM app.service_orders s JOIN app.customers c ON c.id=s.customer_id JOIN app.customer_vehicles v ON v.id=s.vehicle_id
      LEFT JOIN app.vehicle_models vm ON vm.id=v.vehicle_model_id LEFT JOIN app.users assigned_user ON assigned_user.id=s.assigned_mechanic_id WHERE s.id=$1`,
     [id],
   )).rows[0];
   if (!order) throw new ApiError(404, "SERVICE_ORDER_NOT_FOUND", "Service order tidak ditemukan");
-  const jobs = await client.query(`SELECT id,name,description,price::text AS price,mechanic_id AS "mechanicId",status,created_at AS "createdAt" FROM app.service_order_jobs WHERE service_order_id=$1 ORDER BY created_at,id`, [id]);
-  const parts = await client.query(`SELECT sp.id,sp.product_id AS "productId",p.part_code AS "partCode",p.name,p.unit,sp.warehouse_id AS "warehouseId",sp.quantity::text AS quantity,sp.unit_price::text AS "unitPrice",sp.unit_cost::text AS "unitCost",sp.consumed_at AS "consumedAt",sp.created_at AS "createdAt" FROM app.service_order_parts sp JOIN app.products p ON p.id=sp.product_id WHERE sp.service_order_id=$1 ORDER BY sp.created_at,sp.id`, [id]);
+  const jobs = await client.query(`SELECT j.id,j.name,j.description,j.price::text AS price,j.mechanic_id AS "mechanicId",mechanic_user.display_name AS "mechanicName",j.status,j.created_at AS "createdAt" FROM app.service_order_jobs j LEFT JOIN app.users mechanic_user ON mechanic_user.id=j.mechanic_id WHERE j.service_order_id=$1 ORDER BY j.created_at,j.id`, [id]);
+  const parts = await client.query(`SELECT sp.id,sp.product_id AS "productId",p.part_code AS "partCode",p.name,p.unit,sp.warehouse_id AS "warehouseId",sp.quantity::text AS quantity,sp.unit_price::text AS "unitPrice",sp.consumed_at AS "consumedAt",sp.created_at AS "createdAt" FROM app.service_order_parts sp JOIN app.products p ON p.id=sp.product_id WHERE sp.service_order_id=$1 ORDER BY sp.created_at,sp.id`, [id]);
   const qualityCheck = await client.query(`SELECT id,checked_by AS "checkedBy",passed,notes,checked_at AS "checkedAt" FROM app.quality_checks WHERE service_order_id=$1`, [id]);
   const history = await client.query(`SELECT h.id,h.from_status AS "fromStatus",h.to_status AS status,h.to_status AS label,h.reason AS notes,h.actor_id AS "actorId",u.display_name AS "actorName",h.created_at AS "occurredAt",h.created_at AS "createdAt" FROM app.service_order_status_history h LEFT JOIN app.users u ON u.id=h.actor_id WHERE h.service_order_id=$1 ORDER BY h.created_at,h.id`, [id]);
   const mechanics = await client.query(`SELECT m.user_id AS id,u.display_name AS name,(SELECT count(*)::int FROM app.service_orders active WHERE active.assigned_mechanic_id=m.user_id AND active.status IN ('assigned','in_progress','quality_check')) AS workload FROM app.mechanics m JOIN app.users u ON u.id=m.user_id WHERE m.is_active=true AND u.is_active=true ORDER BY workload,u.display_name`, []);
@@ -97,19 +97,29 @@ export async function getWorkflow(client: PoolClient, id: string) {
     [readiness.invoiceId],
   )).rows : [];
   const jobItems = jobs.rows.map((job) => ({ ...job, quantity: 1, unit: "jasa", price: Number(job.price), subtotal: Number(job.price) }));
-  const partItems = parts.rows.map((part) => ({ ...part, quantity: Number(part.quantity), price: Number(part.unitPrice), unitPrice: Number(part.unitPrice), unitCost: Number(part.unitCost), subtotal: Number(part.quantity) * Number(part.unitPrice) }));
+  const partItems = parts.rows.map((part) => ({ ...part, quantity: Number(part.quantity), price: Number(part.unitPrice), unitPrice: Number(part.unitPrice), subtotal: Number(part.quantity) * Number(part.unitPrice) }));
   const labor = jobItems.reduce((total, job) => total + job.subtotal, 0);
   const partTotal = partItems.reduce((total, part) => total + part.subtotal, 0);
   const qc = qualityCheck.rows[0] as { passed?: boolean; notes?: string | null; checkedBy?: string | null; checkedAt?: string | null } | undefined;
   return {
     ...order,
     odometer: order.odometer === null ? null : Number(order.odometer),
-    customer: { id: order.customerId, name: order.customerName, phone: order.customerPhone },
-    vehicle: { id: order.vehicleId, plateNumber: order.plateNumber, model: order.model, odometer: order.odometer === null ? null : Number(order.odometer), imageUrl: order.imageUrl ?? null },
+    customer: { id: order.customerId, name: order.customerName, phone: order.customerPhone, address: order.customerAddress ?? null },
+    vehicle: { id: order.vehicleId, plateNumber: order.plateNumber, model: order.model, year: order.vehicleYear ?? null, odometer: order.odometer === null ? null : Number(order.odometer), imageUrl: order.imageUrl ?? null },
     diagnosis: order.diagnosis ? { notes: order.diagnosis, findings: order.diagnosis, estimatedTotal: labor + partTotal, updatedAt: order.updatedAt } : null,
     mechanics: mechanics.rows,
     jobs: jobItems,
     parts: partItems,
+    repairSummary: {
+      totalJobs: jobItems.length,
+      completedJobs: jobItems.filter((job) => job.status === "completed").length,
+      openJobs: jobItems.filter((job) => job.status !== "completed").length,
+      completedWork: Boolean((jobItems.length || partItems.length) && jobItems.every((job) => job.status === "completed") && partItems.every((part) => part.consumedAt !== null)),
+      partsUsed: partItems.filter((part) => part.consumedAt !== null).length,
+      labor,
+      parts: partTotal,
+      total: labor + partTotal,
+    },
     estimate: { labor, parts: partTotal, total: labor + partTotal, approvedAt: order.approvedAt, notes: order.approvalNotes },
     qualityCheck: qualityCheck.rows[0] ?? null,
     qualityControl: qc ? { status: qc.passed ? "passed" : "rework", notes: qc.notes ?? null, checkedBy: qc.checkedBy ?? null, checkedAt: qc.checkedAt ?? null } : null,
@@ -126,6 +136,12 @@ export async function getWorkflow(client: PoolClient, id: string) {
 
 export async function executeWorkflow(client: PoolClient, actor: Actor, orderId: string, input: WorkflowActionInput) {
   const order = await lockOrder(client, orderId);
+  if (actor.role === "mechanic" && order.assigned_mechanic_id !== actor.id) {
+    throw new ApiError(403, "SERVICE_ORDER_NOT_ASSIGNED", "Mekanik hanya dapat memproses Service Order yang ditugaskan kepadanya");
+  }
+  if (actor.role === "mechanic" && input.action === "handover") {
+    throw new ApiError(403, "HANDOVER_FORBIDDEN", "Serah terima kendaraan wajib dilakukan petugas berwenang");
+  }
   let result: unknown;
   if (input.action === "diagnosis") {
     if (["invoiced", "paid"].includes(order.status)) throw new ApiError(409, "DIAGNOSIS_LOCKED", "Diagnosis tidak dapat diubah setelah invoice");
@@ -273,6 +289,7 @@ export async function createServiceInvoice(client: PoolClient, actor: Actor, ord
   const parts = await client.query<{ id: string; name: string; quantity: string; unit_price: string }>("SELECT sp.id,p.name,sp.quantity::text,sp.unit_price::text FROM app.service_order_parts sp JOIN app.products p ON p.id=sp.product_id WHERE sp.service_order_id=$1 ORDER BY sp.created_at,sp.id", [order.id]);
   const subtotal = jobs.rows.reduce((total, job) => total + Number(job.price), 0) + parts.rows.reduce((total, part) => total + Number(part.quantity) * Number(part.unit_price), 0);
   if (input.discount > subtotal) throw new ApiError(422, "DISCOUNT_INVALID", "Diskon melebihi subtotal");
+  if (subtotal - input.discount + input.tax <= 0) throw new ApiError(422, "INVOICE_TOTAL_INVALID", "Total invoice harus lebih besar dari nol");
   const invoiceNumber = (await client.query<{ number: string }>("SELECT 'SINV-' || to_char(current_date,'YYYYMMDD') || '-' || lpad(nextval('app.service_invoice_number_seq')::text,8,'0') AS number")).rows[0].number;
   const invoice = (await client.query<{ id: string; invoiceNumber: string; total: string }>(
     `INSERT INTO app.customer_invoices(invoice_number,service_order_id,customer_id,status,subtotal,discount,tax,issued_at,due_at,created_by)

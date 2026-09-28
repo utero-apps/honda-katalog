@@ -231,3 +231,14 @@
 - [x] PUR7-006 [P0] Pembayaran vendor atomik: lock invoice, idempotency, partial/full status, dan penolakan overpayment.
 - [x] PUR7-007 [P1] Aksi vendor, invoice vendor, dan pembayaran tersedia langsung dari workspace purchasing.
 - [x] PUR7-008 [P0] Unit/API/E2E, lint, typecheck, build, migration verification, dan Docker smoke.
+
+## 14. Page 5 - Service & Customer Management Completion
+
+- [x] SRV5-001 [P0] Samakan indikator workflow UI dengan 10 tahap pada PDF.
+- [x] SRV5-002 [P0] Lengkapi detail SO dengan alamat pelanggan, tahun kendaraan, waktu dibuat, dan ringkasan perbaikan.
+- [x] SRV5-003 [P0] Tampilkan pekerjaan dan sparepart sebagai tabel lengkap berisi jenis, deskripsi, mekanik, estimasi, serta status.
+- [x] SRV5-004 [P1] Sediakan dokumen cetak job card, estimasi, invoice/nota, dan bukti serah-terima.
+- [x] SRV5-005 [P0] Lengkapi serah-terima dengan checklist keluar, foto akhir, dan tanda tangan digital.
+- [x] SRV5-006 [P0] Tutup seluruh bypass status yang dapat melewati QC, invoice, pembayaran, atau handover.
+- [x] SRV5-007 [P0] Tambah test workflow, RBAC, validasi upload, dan rekonsiliasi pembayaran.
+- [x] SRV5-008 [P0] Jalankan migration, unit/API/E2E, typecheck, build, dan Docker smoke.

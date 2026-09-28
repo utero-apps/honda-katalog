@@ -4,15 +4,24 @@ export type ServiceOrder = {
   id: string;
   orderNumber: string;
   status: string;
-  openedAt?: string;
-  updatedAt?: string;
+  openedAt?: string | null;
+  updatedAt?: string | null;
+  completedAt?: string | null;
+  targetCompletionAt?: string | null;
   customerName?: string;
   customerPhone?: string | null;
-  customer?: { id?: string; name?: string; phone?: string | null };
+  customerAddress?: string | null;
+  customer?: {
+    id?: string;
+    name?: string;
+    phone?: string | null;
+    address?: string | null;
+  };
   vehicle?: {
     id?: string;
     plateNumber?: string;
     model?: string | null;
+    year?: number | string | null;
     odometer?: number | string | null;
     imageUrl?: string | null;
   };
@@ -37,6 +46,11 @@ export type WorkflowItem = {
   consumedAt?: string | null;
   createdAt?: string;
   actorName?: string | null;
+  mechanicId?: string | null;
+  mechanicName?: string | null;
+  partCode?: string | null;
+  productId?: string | null;
+  unitPrice?: number | string;
   notes?: string | null;
 };
 
@@ -64,6 +78,16 @@ export type ServiceOrderWorkflow = ServiceOrder & {
   }>;
   jobs?: WorkflowItem[];
   parts?: WorkflowItem[];
+  repairSummary?: {
+    totalJobs?: number;
+    completedJobs?: number;
+    openJobs?: number;
+    completedWork?: boolean;
+    partsUsed?: number;
+    labor?: number | string;
+    parts?: number | string;
+    total?: number | string;
+  };
   estimate?: {
     labor?: number | string;
     parts?: number | string;
@@ -82,6 +106,8 @@ export type ServiceOrderWorkflow = ServiceOrder & {
     invoiceNumber?: string;
     status?: string;
     total?: number | string;
+    issuedAt?: string | null;
+    dueAt?: string | null;
     paidAmount?: number | string;
     outstandingAmount?: number | string;
     payments?: Array<{
@@ -95,6 +121,7 @@ export type ServiceOrderWorkflow = ServiceOrder & {
     status?: string;
     recipientName?: string | null;
     notes?: string | null;
+    signatureReference?: string | null;
     handedOverAt?: string | null;
   } | null;
 };

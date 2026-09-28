@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/server/http";
 import {
   assertIdempotencyPayloadMatches,
+  assertCustomerInvoicePayable,
   assertPaymentWithinOutstanding,
   assertVendorInvoicePayable,
   paymentInput,
@@ -91,5 +92,22 @@ describe("outgoing vendor payment safety", () => {
       409,
       "IDEMPOTENCY_CONFLICT",
     );
+  });
+});
+
+describe("incoming customer payment safety", () => {
+  it("rejects missing and inactive customer invoices", () => {
+    expectApiError(() => assertCustomerInvoicePayable(undefined), 404, "CUSTOMER_INVOICE_NOT_FOUND");
+    expectApiError(() => assertCustomerInvoicePayable({ status: "reversed", total: "100000" }), 409, "INVOICE_NOT_PAYABLE");
+  });
+
+  it("locks invoice and service order, reconciles statuses, and records audit", () => {
+    const route = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+    expect(route).toContain("FOR UPDATE OF s");
+    expect(route).toContain("FROM app.customer_invoices WHERE id=$1 FOR UPDATE");
+    expect(route).toContain("customer_invoice_id=$1 AND direction='incoming' AND reversed_at IS NULL");
+    expect(route).toContain("UPDATE app.customer_invoices SET status=$1::app.invoice_status");
+    expect(route).toContain("UPDATE app.service_orders SET status='paid'");
+    expect(route).toContain('action: "finance.customer_invoice.payment"');
   });
 });

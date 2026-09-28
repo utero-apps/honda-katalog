@@ -76,6 +76,13 @@ export function assertVendorInvoicePayable(invoice?: {
     );
 }
 
+export function assertCustomerInvoicePayable(invoice?: { status: string; total: string }) {
+  if (!invoice)
+    throw new ApiError(404, "CUSTOMER_INVOICE_NOT_FOUND", "Invoice pelanggan tidak ditemukan");
+  if (!["posted", "partially_paid", "paid"].includes(invoice.status))
+    throw new ApiError(409, "INVOICE_NOT_PAYABLE", "Invoice pelanggan tidak aktif untuk pembayaran");
+}
+
 export function assertPaymentWithinOutstanding(
   amount: number,
   total: number,
@@ -186,14 +193,53 @@ export async function POST(request: NextRequest) {
           return payment;
         }
 
-        return (
+        const invoiceLink = (await client.query<{ service_order_id: string | null }>(
+          "SELECT service_order_id FROM app.customer_invoices WHERE id=$1",
+          [body.customerInvoiceId],
+        )).rows[0];
+        if (!invoiceLink) throw new ApiError(404, "CUSTOMER_INVOICE_NOT_FOUND", "Invoice pelanggan tidak ditemukan");
+        const serviceOrder = invoiceLink.service_order_id ? (
+          await client.query<{ id: string; status: string; handedOverAt: string | null }>(
+            `SELECT s.id,s.status,s.handed_over_at AS "handedOverAt"
+               FROM app.service_orders s WHERE s.id=$1 FOR UPDATE OF s`,
+            [invoiceLink.service_order_id],
+          )
+        ).rows[0] : null;
+        if (invoiceLink.service_order_id && (!serviceOrder || serviceOrder.handedOverAt || !["invoiced", "paid"].includes(serviceOrder.status)))
+          throw new ApiError(409, "SERVICE_ORDER_NOT_PAYABLE", "Service order tidak aktif untuk pembayaran");
+        const invoice = (
+          await client.query<{ id: string; status: string; total: string }>(
+            "SELECT id,status,total::text FROM app.customer_invoices WHERE id=$1 FOR UPDATE",
+            [body.customerInvoiceId],
+          )
+        ).rows[0];
+        assertCustomerInvoicePayable(invoice);
+        const paid = Number((await client.query<{ paid: string }>(
+          "SELECT COALESCE(SUM(amount),0)::text AS paid FROM app.payments WHERE customer_invoice_id=$1 AND direction='incoming' AND reversed_at IS NULL",
+          [invoice.id],
+        )).rows[0].paid);
+        const total = Number(invoice.total);
+        assertPaymentWithinOutstanding(body.amount, total, paid);
+        const payment = (
           await client.query<{ id: string; paymentNumber: string }>(
             `INSERT INTO app.payments(payment_number,direction,customer_invoice_id,amount,method,reference,received_by,idempotency_key)
              VALUES($1,'incoming',$2,$3,$4,$5,$6,$7)
              RETURNING id,payment_number AS "paymentNumber"`,
-            [body.paymentNumber, body.customerInvoiceId, body.amount, body.method, body.reference ?? null, user.id, body.idempotencyKey],
+            [body.paymentNumber, invoice.id, body.amount, body.method, body.reference ?? null, user.id, body.idempotencyKey],
           )
         ).rows[0];
+        const invoiceStatus = Math.round((paid + body.amount) * 100) >= Math.round(total * 100) ? "paid" : "partially_paid";
+        await client.query("UPDATE app.customer_invoices SET status=$1::app.invoice_status WHERE id=$2", [invoiceStatus, invoice.id]);
+        if (invoiceStatus === "paid" && serviceOrder && serviceOrder.status !== "paid") {
+          await client.query("UPDATE app.service_orders SET status='paid',updated_by=$1,updated_at=now() WHERE id=$2", [user.id, serviceOrder.id]);
+          await client.query("INSERT INTO app.service_order_status_history(service_order_id,from_status,to_status,reason,actor_id) VALUES($1,$2,'paid','Invoice lunas',$3)", [serviceOrder.id, serviceOrder.status, user.id]);
+        }
+        await recordAudit(client, {
+          actorId: user.id, requestId, action: "finance.customer_invoice.payment",
+          entityType: "payment", entityId: payment.id,
+          after: { serviceOrderId: serviceOrder?.id ?? null, customerInvoiceId: invoice.id, paymentNumber: payment.paymentNumber, amount: body.amount, invoiceStatus },
+        });
+        return payment;
       },
     );
     return ok(data, { requestId });

@@ -7,9 +7,11 @@ if (!password) throw new Error("BOOTSTRAP_ADMIN_PASSWORD wajib diisi");
 
 let cookie = "";
 async function request(path, init = {}, expected = 200) {
+  const headers = { origin: baseUrl, ...(cookie ? { cookie } : {}), ...init.headers };
+  if (!(init.body instanceof FormData)) headers["content-type"] = "application/json";
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", origin: baseUrl, ...(cookie ? { cookie } : {}), ...init.headers },
+    headers,
   });
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
@@ -65,7 +67,24 @@ const replayedPayment = (await request(invoicePath, { method: "POST", body: JSON
 if (payment.invoice?.payments?.length !== replayedPayment.invoice?.payments?.length) throw new Error("Idempotency pembayaran penuh Service Order gagal");
 const paidWorkflow = (await request(workflowPath)).data;
 if (paidWorkflow.invoice?.status !== "paid" || Number(paidWorkflow.readiness?.outstanding) !== 0 || paidWorkflow.status !== "paid") throw new Error("Pembayaran penuh belum merekonsiliasi invoice secara atomik");
-const handover = (await request(workflowPath, { method: "POST", body: JSON.stringify({ action: "handover", recipientName: customer.name, notes: "Motor diterima pelanggan" }) })).data;
+const handoverAssetsPath = `/api/v1/operations/service-orders/${order.id}/handover-assets`;
+await request(handoverAssetsPath, {
+  method: "PUT",
+  body: JSON.stringify({ vehicleChecked: true, belongingsReturned: true, keysReturned: true, workExplained: true, notes: "Motor, kunci, dan barang pelanggan sudah diperiksa" }),
+});
+const testPngBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+async function uploadHandoverAsset(kind) {
+  const form = new FormData();
+  form.set("kind", kind);
+  form.set("image", new Blob([testPngBytes], { type: "image/png" }), `${kind}.png`);
+  return (await request(handoverAssetsPath, { method: "POST", body: form })).data;
+}
+const photo = await uploadHandoverAsset("final_photo");
+const signature = await uploadHandoverAsset("signature");
+if (!photo?.id || !signature?.id) throw new Error("Upload foto akhir atau tanda tangan gagal");
+const handoverAssets = (await request(handoverAssetsPath)).data;
+if (!handoverAssets?.readiness?.ready || handoverAssets.readiness.photoCount < 1 || !handoverAssets.readiness.hasSignature) throw new Error("Checklist keluar dan bukti akhir belum siap untuk handover");
+const handover = (await request(`${handoverAssetsPath}/complete`, { method: "POST", body: JSON.stringify({ recipientName: customer.name, recipientAcknowledged: true, notes: "Motor diterima pelanggan" }) })).data;
 const detail = handover;
 if (detail.status !== "completed" || detail.jobs.length !== 1 || detail.qualityCheck?.passed !== true || !detail.handedOverAt) throw new Error("Handover Service Order tidak konsisten");
 const transitions = detail.history.map((item) => item.status ?? item.to_status ?? item.toStatus);

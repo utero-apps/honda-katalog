@@ -63,48 +63,94 @@ describe("service order workflow", () => {
 
   it("[P0] records valid status transition and actor history", async () => {
     mocks.query
-      .mockResolvedValueOnce({ rows: [{ status: "assigned" }] })
-      .mockResolvedValueOnce({ rows: [{ id: orderId, status: "in_progress" }] })
+      .mockResolvedValueOnce({ rows: [{ status: "draft" }] })
+      .mockResolvedValueOnce({ rows: [{ id: orderId, status: "open" }] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const response = await changeStatus(statusRequest("in_progress"), context);
+    const response = await changeStatus(statusRequest("open"), context);
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ data: { id: orderId, status: "in_progress" } });
+    await expect(response.json()).resolves.toMatchObject({ data: { id: orderId, status: "open" } });
     expect(mocks.query.mock.calls[2]).toEqual([
       expect.stringContaining("service_order_status_history"),
-      [orderId, "assigned", "in_progress", "Workflow test", user.id],
+      [orderId, "draft", "open", "Workflow test", user.id],
     ]);
   });
 
+  it("[P0] rejects financial and terminal status bypasses from the legacy status route", async () => {
+    for (const [currentStatus, requestedStatus] of [
+      ["quality_check", "invoiced"],
+      ["quality_check", "completed"],
+      ["invoiced", "paid"],
+      ["paid", "completed"],
+      ["open", "in_progress"],
+      ["assigned", "in_progress"],
+      ["in_progress", "quality_check"],
+    ] as const) {
+      mocks.query.mockReset().mockResolvedValueOnce({
+        rows: [{ status: currentStatus }],
+      });
+
+      const response = await changeStatus(statusRequest(requestedStatus), context);
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "INVALID_STATE_TRANSITION" },
+      });
+      expect(mocks.query).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("[P0] restricts mechanics to their assigned Service Order and blocks mechanic handover", async () => {
+    const mechanic = { ...user, role: "mechanic" };
+    mocks.requirePermission.mockResolvedValue(mechanic);
+    mocks.query.mockResolvedValueOnce({
+      rows: [{ id: orderId, status: "in_progress", customer_id: "customer-id", assigned_mechanic_id: crypto.randomUUID(), approved_at: "2026-09-28T00:00:00Z", diagnosis: "Valid" }],
+    });
+
+    const foreignOrder = await mutateWorkflow(request(`/api/v1/operations/service-orders/${orderId}/workflow`, { action: "quality_check", passed: true }), context);
+    expect(foreignOrder.status).toBe(403);
+    await expect(foreignOrder.json()).resolves.toMatchObject({ error: { code: "SERVICE_ORDER_NOT_ASSIGNED" } });
+
+    mocks.query.mockReset().mockResolvedValueOnce({
+      rows: [{ id: orderId, status: "paid", customer_id: "customer-id", assigned_mechanic_id: mechanic.id, approved_at: "2026-09-28T00:00:00Z", diagnosis: "Valid" }],
+    });
+    const handover = await mutateWorkflow(request(`/api/v1/operations/service-orders/${orderId}/workflow`, { action: "handover", recipientName: "Pelanggan" }), context);
+    expect(handover.status).toBe(403);
+    await expect(handover.json()).resolves.toMatchObject({ error: { code: "HANDOVER_FORBIDDEN" } });
+  });
+
   it("[P0] consumes a reserved part once and returns idempotent replay", async () => {
+    mocks.query.mockResolvedValueOnce({ rows: [{ status: "in_progress", approvedAt: "2026-09-28T00:00:00Z", jobsOpen: 0, partsUnconsumed: 1 }] });
     mocks.query.mockResolvedValueOnce({ rows: [{ warehouse_id: warehouseId, product_id: productId, quantity: "2", unit_cost: "7000", consumed_at: null }] });
     mocks.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
     const consumed = await mutateDetails(detailRequest({ action: "consume_part", partId, idempotencyKey: "consume-part-test" }), context);
     expect(consumed.status).toBe(200);
-    expect(mocks.query.mock.calls[1][0]).toContain("stock_movements");
-    expect(mocks.query.mock.calls[1][1]).toEqual([warehouseId, productId, -2, "7000", orderId, "consume-part-test", user.id]);
+    expect(mocks.query.mock.calls[2][0]).toContain("stock_movements");
+    expect(mocks.query.mock.calls[2][1]).toEqual([warehouseId, productId, -2, "7000", orderId, "consume-part-test", user.id]);
 
-    mocks.query.mockReset().mockResolvedValueOnce({ rows: [{ warehouse_id: warehouseId, product_id: productId, quantity: "2", unit_cost: "7000", consumed_at: "2026-09-28T00:00:00Z" }] });
+    mocks.query.mockReset().mockResolvedValueOnce({ rows: [{ status: "in_progress", approvedAt: "2026-09-28T00:00:00Z", jobsOpen: 0, partsUnconsumed: 0 }] }).mockResolvedValueOnce({ rows: [{ warehouse_id: warehouseId, product_id: productId, quantity: "2", unit_cost: "7000", consumed_at: "2026-09-28T00:00:00Z" }] });
     const replay = await mutateDetails(detailRequest({ action: "consume_part", partId, idempotencyKey: "consume-part-replay" }), context);
     expect(replay.status).toBe(200);
     await expect(replay.json()).resolves.toMatchObject({ data: { partId, alreadyConsumed: true } });
-    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.query).toHaveBeenCalledTimes(2);
   });
 
   it("[P1] rejects reservation when available stock excludes existing reservations", async () => {
+    mocks.query.mockResolvedValueOnce({ rows: [{ status: "in_progress", approvedAt: "2026-09-28T00:00:00Z", jobsOpen: 0, partsUnconsumed: 0 }] });
     mocks.query.mockResolvedValueOnce({ rows: [{ quantity: "5", reserved_quantity: "4" }] });
     const response = await mutateDetails(detailRequest({ action: "reserve_part", productId, warehouseId, quantity: 2, unitPrice: 10000, unitCost: 7000 }), context);
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({ error: { code: "INSUFFICIENT_AVAILABLE_STOCK" } });
-    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.query).toHaveBeenCalledTimes(2);
   });
 
   it("[P1] upserts quality check using service.complete permission", async () => {
+    mocks.query.mockResolvedValueOnce({ rows: [{ status: "in_progress", approvedAt: "2026-09-28T00:00:00Z", jobsOpen: 0, partsUnconsumed: 0 }] });
     mocks.query.mockResolvedValueOnce({ rows: [{ id: "qc-id", passed: true }] });
     const response = await mutateDetails(detailRequest({ action: "quality_check", passed: true, notes: "Rem dan lampu lulus" }), context);
     expect(response.status).toBe(200);
     expect(mocks.requirePermission).toHaveBeenCalledWith(expect.anything(), expect.any(String), "service.complete");
-    expect(mocks.query.mock.calls[0][0]).toContain("ON CONFLICT(service_order_id) DO UPDATE");
+    expect(mocks.query.mock.calls[1][0]).toContain("ON CONFLICT(service_order_id) DO UPDATE");
   });
 
   it("[P0] blocks handover when an invoice is only partially paid", async () => {

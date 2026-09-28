@@ -33,8 +33,6 @@ const models = (await request("/api/v1/catalog/models")).body.data;
 const vehicle = (await request("/api/v1/operations/vehicles", { method: "POST", body: JSON.stringify({ customerId: customer.id, vehicleModelId: models[0]?.id || null, plateNumber: `E2E${suffix.slice(-5)}`, odometer: 1200 }) })).body.data;
 const order = (await request("/api/v1/operations/service-orders", { method: "POST", body: JSON.stringify({ orderNumber: `SO-${suffix}`, customerId: customer.id, vehicleId: vehicle.id, complaint: "Pengujian workflow E2E" }) })).body.data;
 await request(`/api/v1/operations/service-orders/${order.id}/details`, { method: "POST", body: JSON.stringify({ action: "job", name: "Servis E2E", price: 50000 }) });
-await request(`/api/v1/operations/service-orders/${order.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "in_progress" }) });
-await request(`/api/v1/operations/service-orders/${order.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "quality_check" }) });
 const profile = await request(`/api/v1/operations/customers/${customer.id}/profile`);
 if (profile.body.data.orders[0]?.id !== order.id) throw new Error("Service history tidak terhubung");
 if (process.env.SERVICE_RECEPTION_E2E_ENABLED === "true") {
