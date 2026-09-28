@@ -17,8 +17,10 @@ describe("dashboard navigation", () => {
     expect(page).toContain("usePathname()");
     expect(page).toContain('aria-current={view === "dashboard" ? "page" : undefined}');
     expect(page).toContain('aria-current={view === "catalog" ? "page" : undefined}');
-    expect(page).toContain('aria-current={view === "business" ? "page" : undefined}');
+    expect(page).toContain('aria-current={pathname === "/business" ? "page" : undefined}');
     expect(page).toContain('aria-label="Navigasi utama"');
+    expect(page).toContain('aria-label="Modul bisnis"');
+    expect(page).toContain('businessNavigation.map((module) =>');
     expect(page).toContain('<DashboardMobileNav view={view} />');
     expect(page).toContain('href="#main-content"');
   });

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { AccessibleDialog } from "@/components/AccessibleDialog";
 import { BarcodeScannerDialog, CatalogTools } from "@/components/CatalogTools";
 import { BusinessWorkspace } from "@/components/BusinessWorkspace";
+import { businessModules } from "@/components/business-config";
 import { DashboardMobileNav } from "@/components/DashboardMobileNav";
 import { WorkspaceOverview } from "@/components/WorkspaceOverview";
 
@@ -99,6 +100,9 @@ export default function Home() {
         ? "business"
         : "dashboard";
   const [user, setUser] = useState<User | null>(null);
+  const businessNavigation = user
+    ? businessModules.filter((module) => module.readRoles.includes(user.role))
+    : [];
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -404,7 +408,7 @@ export default function Home() {
         Lewati navigasi
       </a>
       <div className="lg:grid lg:min-h-screen lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className="hidden border-r border-blue-950/10 bg-blue-950 p-5 text-blue-50 lg:flex lg:flex-col">
+        <aside className="hidden h-dvh overflow-y-auto border-r border-blue-950/10 bg-blue-950 p-5 text-blue-50 lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500 font-black text-blue-950">
               H
@@ -414,7 +418,7 @@ export default function Home() {
               <p className="text-xs text-blue-200">Control Center</p>
             </div>
           </div>
-          <nav className="mt-10 space-y-2" aria-label="Navigasi utama">
+          <nav className="mt-8 space-y-2" aria-label="Navigasi utama">
             <Link
               href="/"
               aria-current={view === "dashboard" ? "page" : undefined}
@@ -422,11 +426,12 @@ export default function Home() {
             >
               Ringkasan Operasional
             </Link>
-            <Link href="/pos" className="dashboard-nav-link">
+            <Link
+              href="/pos"
+              aria-current={pathname === "/pos" ? "page" : undefined}
+              className={`dashboard-nav-link ${pathname === "/pos" ? "dashboard-nav-link-active" : ""}`}
+            >
               Service Order Baru
-            </Link>
-            <Link href="/business/service-orders" className="dashboard-nav-link">
-              Daftar Service Order
             </Link>
             <Link
               href="/catalog"
@@ -435,13 +440,34 @@ export default function Home() {
             >
               Katalog Sparepart
             </Link>
-            <Link
-              href="/business"
-              aria-current={view === "business" ? "page" : undefined}
-              className={`dashboard-nav-link ${view === "business" ? "dashboard-nav-link-active" : ""}`}
-            >
-              Modul Bisnis
-            </Link>
+            <div className="pt-4" role="group" aria-label="Modul bisnis">
+              <p className="px-3 text-xs font-bold uppercase tracking-[0.16em] text-blue-300">
+                Modul bisnis
+              </p>
+              <div className="mt-2 space-y-1 border-l border-blue-800 pl-2">
+                <Link
+                  href="/business"
+                  aria-current={pathname === "/business" ? "page" : undefined}
+                  className={`dashboard-nav-link ${pathname === "/business" ? "dashboard-nav-link-active" : ""}`}
+                >
+                  Ringkasan bisnis
+                </Link>
+                {businessNavigation.map((module) => {
+                  const selected =
+                    pathname === module.href || pathname.startsWith(`${module.href}/`);
+                  return (
+                    <Link
+                      key={module.key}
+                      href={module.href}
+                      aria-current={selected ? "page" : undefined}
+                      className={`dashboard-nav-link ${selected ? "dashboard-nav-link-active" : ""}`}
+                    >
+                      {module.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           </nav>
           <div className="mt-auto rounded-2xl border border-blue-800 bg-blue-900/70 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-200">
