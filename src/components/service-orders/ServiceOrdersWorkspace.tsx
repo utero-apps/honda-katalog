@@ -87,38 +87,38 @@ export function ServiceOrdersWorkspace() {
     [orders, query, status],
   );
   return (
-    <main className="min-h-dvh bg-slate-50 text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+    <section className="mx-auto max-w-7xl" aria-labelledby="service-orders-heading">
+      <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-xl">
+        <div className="flex flex-col justify-between gap-4 px-5 py-5 sm:flex-row sm:items-end sm:px-7 sm:py-6">
           <Link
             href="/business"
             className="text-sm font-bold text-blue-700 hover:text-blue-900"
           >
             ← Modul Bisnis
           </Link>
-          <div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[.18em] text-red-600">
+              <p className="text-xs font-black uppercase tracking-[.18em] text-red-400">
                 Workshop operation
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight">
-                Service Order
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
+              <h2 id="service-orders-heading" className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
+                Service Order Desk
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                 Pantau penerimaan, pengerjaan, QC, invoice, hingga serah terima
                 motor.
               </p>
             </div>
             <Link
               href="/service/reception"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 text-sm font-black text-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-black text-slate-950 hover:bg-slate-100"
             >
               Terima motor baru
             </Link>
           </div>
         </div>
-      </header>
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      </div>
+      <section className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-6">
         <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
           <label className="block">
             <span className="sr-only">Cari Service Order</span>
@@ -261,6 +261,6 @@ export function ServiceOrdersWorkspace() {
           </>
         )}
       </section>
-    </main>
+    </section>
   );
 }
