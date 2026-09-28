@@ -13,4 +13,8 @@ describe("catalog schemas", () => {
   it("accepts safe product input", () => {
     expect(productInputSchema.parse({ partCode: "123-ABC", name: "Kampas Rem", het: 45000 })).toMatchObject({ unit: "pcs", status: "active" });
   });
+
+  it("rejects protocol-relative image URLs", () => {
+    expect(() => productInputSchema.parse({ partCode: "123-ABC", name: "Kampas Rem", het: 45000, imageUrl: "//attacker.invalid/image.png" })).toThrow();
+  });
 });

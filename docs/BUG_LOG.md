@@ -1096,3 +1096,26 @@ Pergantian pelanggan sekarang selalu mengganti cart dengan Open Bill milik pelan
 ### Verifikasi
 
 Unit test memvalidasi pemulihan item Open Bill terpilih tanpa membawa ID item cart pelanggan sebelumnya. Typecheck, lint, test, Docker rebuild, dan verifikasi browser dijalankan setelah patch.
+
+## BUG-20260928-042 - Form katalog hanya menerima URL gambar dan tidak mendukung unggah file
+
+- Tanggal: 28 September 2026
+- Status: Fixed
+- Area: Katalog produk, POS, media storage
+- Severity: Medium
+
+### Gejala
+
+Kasir atau admin harus mengetik URL gambar manual. Tidak ada dropzone, preview, validasi file, maupun penyimpanan gambar persisten.
+
+### Sumber
+
+Form produk hanya memiliki field `imageUrl`. API katalog menerima URL tersebut tanpa endpoint multipart atau storage gambar.
+
+### Perbaikan
+
+Tambahkan dropzone dan pemilih file untuk JPEG, PNG, WebP, dan AVIF maksimal 5 MB. File diverifikasi lewat MIME, ukuran, dan magic byte; diberi nama UUID; disimpan pada volume Docker `/app/data/product-images`; lalu disajikan melalui endpoint media terautentikasi dengan `nosniff`. URL protocol-relative kini ditolak oleh schema produk.
+
+### Verifikasi
+
+Unit test memvalidasi format gambar, spoof MIME, batas ukuran, URL protocol-relative, dan kontrak UI. Typecheck, lint, seluruh test, build Docker, health check, serta uji upload browser dijalankan setelah patch.

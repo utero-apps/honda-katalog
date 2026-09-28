@@ -163,6 +163,7 @@
 - [x] UX-006 [P1] Mobile 360 px verification.
 - [x] UX-007 [P1] Accessibility tests.
 - [x] UX-008 [P1] Enam halaman bisnis domain-specific dengan deep link, loading/error/empty/retry, pencarian, dan responsive table/card.
+- [x] UX-009 [P1] Upload gambar produk dengan drag-and-drop, preview, validasi client/server, dan feedback aksesibel.
 
 ## 9. Audit Remediation
 
@@ -190,6 +191,7 @@
 - [x] OPS-002 [P0] PostgreSQL private dan web non-root.
 - [x] OPS-003 [P1] CI, health/readiness, structured logs.
 - [x] OPS-004 [P1] Backup/restore scripts dan verification.
+- [x] OPS-005 [P1] Volume Docker persisten untuk gambar produk dan media endpoint terautentikasi.
 - [x] REL-001 [P0] Tidak ada runtime Supabase reference.
 - [x] REL-002 [P0] Main Phase 1-4 E2E pass.
 - [x] REL-003 [P0] Docker smoke dan final security audit pass.

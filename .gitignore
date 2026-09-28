@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local code index
 /.codegraph/
+
+# runtime product image uploads
+/data/product-images/

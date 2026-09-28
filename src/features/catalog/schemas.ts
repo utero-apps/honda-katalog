@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 const optionalUuid = z.union([z.uuid(), z.literal("")]).transform((value) => value || null).optional();
-const imageUrl = z.string().trim().max(2_000).refine((value) => /^https?:\/\//.test(value) || value.startsWith("/"), "URL gambar harus memakai HTTP(S) atau path lokal");
+const imageUrl = z.string().trim().max(2_000).refine(
+  (value) => /^https?:\/\//.test(value) || /^\/api\/v1\/media\/products\/[0-9a-f-]+\.(jpg|png|webp|avif)$/.test(value),
+  "URL gambar harus memakai HTTP(S) atau media produk internal",
+);
 
 export const catalogQuerySchema = z.object({
   query: z.string().trim().max(120).default(""),

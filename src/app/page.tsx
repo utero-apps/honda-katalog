@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccessibleDialog } from "@/components/AccessibleDialog";
@@ -111,6 +112,11 @@ export default function Home() {
   const [showProductScanner, setShowProductScanner] = useState(false);
   const [partCodeValue, setPartCodeValue] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [isImageDropActive, setIsImageDropActive] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const closeProductForm = useCallback(() => {
     setShowForm(false);
@@ -118,12 +124,20 @@ export default function Home() {
     setPartCodeValue("");
     setEditing(null);
     setFieldErrors({});
+    setImageUrl("");
+    setImageError("");
+    setImageUploading(false);
+    setIsImageDropActive(false);
   }, []);
 
   function openProductForm(product: Product | null) {
     setEditing(product);
     setPartCodeValue(product?.partCode ?? "");
     setFieldErrors({});
+    setImageUrl(product?.imageUrl ?? "");
+    setImageError("");
+    setImageUploading(false);
+    setIsImageDropActive(false);
     setShowForm(true);
   }
 
@@ -133,6 +147,41 @@ export default function Home() {
       "aria-invalid": hasError || undefined,
       "aria-describedby": hasError ? `${name}-error` : undefined,
     };
+  }
+
+  async function uploadProductImage(file?: File) {
+    if (!file) return;
+    const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+    if (!acceptedTypes.includes(file.type)) {
+      setImageError("Gunakan gambar JPEG, PNG, WebP, atau AVIF.");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Ukuran gambar maksimal 5 MB.");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
+    }
+    setImageUploading(true);
+    setImageError("");
+    try {
+      const form = new FormData();
+      form.set("image", file);
+      const response = await fetch("/api/v1/catalog/product-images", {
+        method: "POST",
+        body: form,
+      });
+      const result = (await response.json()) as Envelope<{ imageUrl: string }>;
+      if (!response.ok)
+        throw new Error(result.error?.message || "Gambar belum dapat diunggah");
+      setImageUrl(result.data.imageUrl);
+      setFieldErrors((current) => ({ ...current, imageUrl: [] }));
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Gambar belum dapat diunggah");
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
   }
 
   const loadProducts = useCallback(
@@ -217,6 +266,10 @@ export default function Home() {
 
   async function submitProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (imageUploading) {
+      setImageError("Tunggu unggahan gambar selesai sebelum menyimpan produk.");
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const body = {
       partCode: form.get("partCode"),
@@ -228,7 +281,7 @@ export default function Home() {
       minimumStock: Number(form.get("minimumStock")),
       status: form.get("status"),
       description: form.get("description") || null,
-      imageUrl: form.get("imageUrl") || null,
+      imageUrl: imageUrl || null,
       barcodes: String(form.get("barcodes") || "")
         .split(",")
         .map((value) => value.trim())
@@ -869,22 +922,63 @@ export default function Home() {
                 <FieldError errors={fieldErrors} name="minimumStock" />
               </div>
               <div className="sm:col-span-2">
-                <label htmlFor="imageUrl" className="text-sm font-bold">
-                  URL gambar produk
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="product-image" className="text-sm font-bold">
+                    Gambar produk
+                  </label>
+                  <span className="text-xs font-medium text-slate-500">JPEG, PNG, WebP, AVIF · maks. 5 MB</span>
+                </div>
                 <input
-                  id="imageUrl"
-                  name="imageUrl"
-                  type="url"
-                  inputMode="url"
-                  placeholder="https://..."
-                  defaultValue={editing?.imageUrl || ""}
-                  {...fieldA11y("imageUrl")}
-                  className="dashboard-input mt-1 w-full rounded-xl border px-3 py-2"
+                  ref={imageInputRef}
+                  id="product-image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  className="sr-only"
+                  onChange={(event) => void uploadProductImage(event.target.files?.[0])}
                 />
-                <p className="mt-1 text-xs text-slate-500">
-                  Opsional. Gambar tampil pada kartu POS.
-                </p>
+                <label
+                  htmlFor="product-image"
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsImageDropActive(true);
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDragLeave={() => setIsImageDropActive(false)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsImageDropActive(false);
+                    void uploadProductImage(event.dataTransfer.files?.[0]);
+                  }}
+                  className={`mt-2 flex min-h-40 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-4 transition ${isImageDropActive ? "border-blue-600 bg-blue-50" : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"}`}
+                >
+                  {imageUrl ? (
+                    <div className="flex w-full items-center gap-4">
+                      <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        <Image loader={({ src }) => src} unoptimized fill sizes="112px" src={imageUrl} alt="Pratinjau gambar produk" className="object-cover" />
+                      </div>
+                      <span className="min-w-0 text-left">
+                        <span className="block text-sm font-bold text-slate-900">Gambar siap dipakai</span>
+                        <span className="mt-1 block truncate text-xs text-slate-500">Klik atau seret gambar lain untuk mengganti.</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="mx-auto h-8 w-8 text-blue-700" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg>
+                      <span className="mt-2 block text-sm font-bold text-slate-900">Seret dan lepas gambar di sini</span>
+                      <span className="mt-1 block text-xs text-slate-500">atau klik untuk memilih file dari perangkat</span>
+                    </span>
+                  )}
+                </label>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-slate-500">Gambar tersimpan pada server dan tampil di kartu POS.</p>
+                  {imageUrl && (
+                    <button type="button" onClick={() => setImageUrl("")} className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-bold text-red-700 transition hover:bg-red-50">
+                      Hapus gambar
+                    </button>
+                  )}
+                </div>
+                {imageUploading && <p aria-live="polite" className="mt-2 text-sm font-semibold text-blue-800">Mengunggah gambar…</p>}
+                {imageError && <p role="alert" className="mt-2 text-sm font-semibold text-red-700">{imageError}</p>}
                 <FieldError errors={fieldErrors} name="imageUrl" />
               </div>
               <div className="sm:col-span-2">
@@ -937,8 +1031,8 @@ export default function Home() {
                 <FieldError errors={fieldErrors} name="description" />
               </div>
             </div>
-            <button className="dashboard-primary-button mt-6 w-full rounded-xl px-4 py-3 font-bold">
-              Simpan Produk
+            <button disabled={imageUploading} className="dashboard-primary-button mt-6 w-full rounded-xl px-4 py-3 font-bold disabled:cursor-not-allowed disabled:opacity-60">
+              {imageUploading ? "Mengunggah gambar…" : "Simpan Produk"}
             </button>
           </form>
         </AccessibleDialog>

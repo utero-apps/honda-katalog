@@ -34,10 +34,13 @@ services:
       - DATABASE_NAME=${POSTGRES_DB:-honda_workshop}
       - DATABASE_USER=honda_runtime
       - DATABASE_PASSWORD=${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD is required}
+      - PRODUCT_IMAGE_DIR=/app/data/product-images
     networks:
       - honda-internal
       - carubra-network
       - maskhar-network
+    volumes:
+      - honda-product-images:/app/data/product-images
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,3 +83,4 @@ networks:
 
 volumes:
   honda-postgres-data:
+  honda-product-images:
