@@ -1,5 +1,7 @@
 # Service Reception Design
 
+> Entry utama: `/pos` (Service Order Desk). URL lama `/service/reception` melakukan redirect permanen ke `/pos`.
+
 ## Tujuan
 
 Service Reception menjadi pintu masuk motor sebelum proses bengkel. Workflow menjaga hubungan Customer -> Vehicle -> Service Order -> Mechanic -> Sparepart/Jasa -> QC -> Invoice -> Payment -> Motor Keluar.

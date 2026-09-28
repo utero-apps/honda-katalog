@@ -422,11 +422,11 @@ export default function Home() {
             >
               Ringkasan Operasional
             </Link>
-            <Link href="/service/reception" className="dashboard-nav-link">
-              Terima Motor Service
-            </Link>
             <Link href="/pos" className="dashboard-nav-link">
-              Point of Sale
+              Service Order Baru
+            </Link>
+            <Link href="/business/service-orders" className="dashboard-nav-link">
+              Daftar Service Order
             </Link>
             <Link
               href="/catalog"
@@ -970,7 +970,7 @@ export default function Home() {
                   )}
                 </label>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-slate-500">Gambar tersimpan pada server dan tampil di kartu POS.</p>
+                  <p className="text-xs text-slate-500">Gambar tersimpan pada server dan tampil di katalog sparepart.</p>
                   {imageUrl && (
                     <button type="button" onClick={() => setImageUrl("")} className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-bold text-red-700 transition hover:bg-red-50">
                       Hapus gambar

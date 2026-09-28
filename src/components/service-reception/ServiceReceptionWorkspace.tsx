@@ -222,7 +222,12 @@ function StepShell({
   );
 }
 
-export function ServiceReceptionWorkspace() {
+export function ServiceReceptionWorkspace({
+  mode = "reception",
+}: {
+  mode?: "reception" | "service-order";
+}) {
+  const isServiceOrderDesk = mode === "service-order";
   const searchRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<ReceptionDraft>(initialDraft);
   const [hydrated, setHydrated] = useState(false);
@@ -513,10 +518,10 @@ export function ServiceReceptionWorkspace() {
           </p>
           <div className="mt-7 grid gap-2 sm:grid-cols-2">
             <Link
-              href="/business/service-orders"
+              href={`/business/service-orders/${success.id}`}
               className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-800 hover:bg-slate-100"
             >
-              Lihat service order
+              Buka detail service order
             </Link>
             <button
               type="button"
@@ -547,24 +552,38 @@ export function ServiceReceptionWorkspace() {
                 Honda Workshop
               </p>
               <h1 className="truncate text-xl font-black sm:text-2xl">
-                Service Reception
+                {isServiceOrderDesk ? "Service Order Desk" : "Service Reception"}
               </h1>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={reset}
-            className="hidden min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 sm:inline-flex"
-          >
-            <Icon name="refresh" />
-            Reset draft
-          </button>
+          <div className="flex items-center gap-2">
+            {isServiceOrderDesk && (
+              <Link
+                href="/business/service-orders"
+                className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-800 hover:bg-blue-100"
+              >
+                Order aktif
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={reset}
+              className="hidden min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 sm:inline-flex"
+            >
+              <Icon name="refresh" />
+              Reset draft
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-5 pb-28 sm:px-6 lg:px-8 lg:pb-8">
         <nav
-          aria-label="Tahapan penerimaan servis"
+          aria-label={
+            isServiceOrderDesk
+              ? "Tahapan pembuatan service order"
+              : "Tahapan penerimaan servis"
+          }
           className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
         >
           <ol className="flex min-w-max gap-1 lg:grid lg:min-w-0 lg:grid-cols-5">

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { PosWorkspace } from "@/components/pos/PosWorkspace";
+import { ServiceReceptionWorkspace } from "@/components/service-reception/ServiceReceptionWorkspace";
 
 export const metadata: Metadata = {
-  title: "POS | Honda Workshop",
-  description: "Point of Sale sparepart Honda Workshop",
+  title: "Service Order Desk | Honda Workshop",
+  description: "Penerimaan pelanggan dan kendaraan untuk pembuatan Service Order",
 };
 
 export default function PosPage() {
-  return <PosWorkspace />;
+  return <ServiceReceptionWorkspace mode="service-order" />;
 }

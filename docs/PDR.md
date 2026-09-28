@@ -79,12 +79,13 @@ Seluruh user internal wajib login. Setiap mutation membutuhkan permission. Mecha
 - Top product, slow-moving, turnover, low stock, profit/margin.
 - Export laporan dengan range terbatas.
 
-### Point of Sale
+### Service Order Desk (menggantikan POS retail)
 
-- Penjualan sparepart untuk pelanggan walk-in atau pelanggan terdaftar.
-- Pencarian cepat melalui nama, part code, barcode hardware, kamera, dan foto.
-- Cart, diskon, pajak, pembayaran tunai/non-tunai, kembalian, receipt, dan riwayat transaksi.
-- Posting stok dan pembayaran atomik, retry idempotent, void terkontrol, serta audit trail.
+- Kasir menerima pelanggan, mencari atau membuat data pelanggan, lalu memilih atau mendaftarkan kendaraan.
+- Kasir mencatat kilometer, keluhan, jenis servis, kondisi fisik, barang bawaan, dan bahan bakar sebelum Service Order dibuat.
+- Service Order menjadi dokumen transaksi utama: diagnosis, penugasan mekanik, jasa, sparepart, QC, invoice, pembayaran, dan serah-terima berjalan pada nomor order yang sama.
+- Halaman `/pos` adalah pintu masuk Service Order Desk; daftar dan detail order tersedia di `/business/service-orders`.
+- Kasir retail sparepart lama tetap tersedia sebagai fallback internal di `/retail-pos`, tetapi tidak menjadi alur navigasi utama bengkel.
 
 ## 6. Workflow Utama
 

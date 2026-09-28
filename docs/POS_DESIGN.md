@@ -1,5 +1,7 @@
 # Point of Sale Design
 
+> Status 28 September 2026: halaman `/pos` sekarang adalah **Service Order Desk**. Dokumen ini hanya berlaku untuk fallback checkout retail di `/retail-pos` dan API `/api/v1/pos/*`; retail tidak lagi menjadi alur utama kasir bengkel.
+
 ## Tujuan
 
 POS melayani penjualan sparepart langsung dengan transaksi PostgreSQL atomik, stok real-time, pembayaran tercatat, receipt dapat dicetak, serta audit tidak dapat dihapus.

@@ -164,6 +164,8 @@
 - [x] UX-007 [P1] Accessibility tests.
 - [x] UX-008 [P1] Enam halaman bisnis domain-specific dengan deep link, loading/error/empty/retry, pencarian, dan responsive table/card.
 - [x] UX-009 [P1] Upload gambar produk dengan drag-and-drop, preview, validasi client/server, dan feedback aksesibel.
+- [x] UX-010 [P0] Ubah `/pos` dari kasir retail menjadi Service Order Desk dengan intake pelanggan/kendaraan, deep link detail SO, dan navigasi canonical.
+- [x] UX-011 [P1] Pertahankan checkout retail pada `/retail-pos` tanpa mencampurkannya ke alur Service Order utama.
 
 ## 9. Audit Remediation
 
