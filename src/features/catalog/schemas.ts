@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const optionalUuid = z.union([z.uuid(), z.literal("")]).transform((value) => value || null).optional();
+const imageUrl = z.string().trim().max(2_000).refine((value) => /^https?:\/\//.test(value) || value.startsWith("/"), "URL gambar harus memakai HTTP(S) atau path lokal");
 
 export const catalogQuerySchema = z.object({
   query: z.string().trim().max(120).default(""),
@@ -20,6 +21,7 @@ export const productInputSchema = z.object({
   minimumStock: z.coerce.number().min(0).max(999_999_999).default(0),
   status: z.enum(["active", "inactive", "archived"]).default("active"),
   description: z.string().trim().max(4_000).nullable().optional(),
+  imageUrl: imageUrl.nullable().optional(),
   barcodes: z.array(z.string().trim().min(3).max(100)).max(20).default([]),
   compatibleModelIds: z.array(z.uuid()).max(100).default([]),
 });

@@ -942,3 +942,134 @@ Migration 009 memindahkan relasi product dan kendaraan ke record model tertua, m
 ### Verifikasi
 
 Audit database sebelum perbaikan menemukan 10 kelompok model dengan masing-masing empat duplikat. Setelah migration dan seed ulang, setiap model aktif hanya satu record dan constraint baru menolak insert ulang dengan year_start NULL.
+
+## BUG-20260928-036 - Keranjang POS tidak dapat disimpan sebagai Open Bill
+
+- Tanggal: 28 September 2026
+- Status: In progress
+- Area: POS, pelanggan, katalog jasa, product media
+- Severity: High
+
+### Gejala
+
+Keranjang POS hilang saat halaman ditutup atau pelanggan dibuka kembali. POS hanya menampilkan sparepart, belum memiliki biaya jasa tetap, dan kartu produk belum menyediakan area gambar yang konsisten.
+
+### Sumber
+
+State keranjang hanya berada pada React memory. Schema POS belum memiliki aggregate Open Bill, katalog jasa, item campuran produk/jasa, atau media produk.
+
+### Rencana Perbaikan
+
+Tambah Open Bill persisten per pelanggan dengan auto-save dan restore, katalog jasa terurut di bagian pertama, checkout campuran tanpa stock movement untuk jasa, dukungan image URL produk, kartu persegi responsif, forced RLS, audit, serta test keamanan dan integritas.
+
+### Verifikasi
+
+Menunggu implementasi dan seluruh quality gate.
+
+## BUG-20260928-037 - Service Order dapat selesai tanpa invoice dan pembayaran
+
+- Tanggal: 28 September 2026
+- Status: Open
+- Area: Service Order, QC, finance
+- Severity: Critical
+
+### Gejala
+
+State machine menerima transisi langsung `quality_check → completed`. Endpoint customer invoice juga menerima Service Order berstatus `completed`, lalu mengubah status terminal tersebut kembali menjadi `invoiced`.
+
+### Sumber
+
+Daftar transisi route status memasukkan `completed` sebagai tujuan dari `quality_check`. Validasi customer invoice menerima status `quality_check` dan `completed`.
+
+### Dampak
+
+Motor dapat ditandai selesai tanpa tagihan dan pembayaran. Order terminal juga dapat dibuka kembali secara implisit, merusak histori status dan rekonsiliasi keuangan.
+
+### Rencana Perbaikan
+
+Batasi jalur normal menjadi `quality_check → invoiced → paid → completed`, tolak invoice untuk status terminal, dan buat rekonsiliasi invoice/payment/status atomik.
+
+### Verifikasi
+
+Test matrix dan regression test sudah ditambahkan. Perbaikan implementasi belum dikerjakan karena berada di luar scope task ini.
+
+## BUG-20260928-038 - Pembayaran Service Order belum merekonsiliasi invoice dan status order
+
+- Tanggal: 28 September 2026
+- Status: Fixed, pending E2E verification
+- Area: Payment, customer invoice, Service Order
+- Severity: High
+
+### Gejala
+
+Posting pembayaran mencatat record payment tetapi tidak memperbarui paid amount/status invoice atau memindahkan Service Order dari `invoiced` ke `paid`.
+
+### Sumber
+
+Endpoint payment hanya melakukan lookup idempotency dan insert ke `app.payments`. Tidak ada lock invoice, validasi outstanding amount, agregasi pembayaran, atau transisi Service Order.
+
+### Dampak
+
+Status operasional harus dipindahkan manual dan dapat berbeda dari saldo invoice sebenarnya. Overpayment dan penyelesaian order sebelum lunas belum dicegah oleh workflow API.
+
+### Rencana Perbaikan
+
+Lock invoice saat pembayaran, validasi outstanding amount, hitung pembayaran aktif, update status invoice, dan transisikan Service Order ke `paid` hanya saat lunas dalam transaksi yang sama.
+
+### Verifikasi
+
+Backend atomik sudah tersedia melalui action `record_payment`: invoice dikunci, outstanding dihitung, partial/full status direkonsiliasi, overpayment ditolak, dan replay idempotent. Contract test dan E2E diperbarui; verifikasi Docker masih tertunda.
+
+## BUG-20260928-039 - Handover menolak Service Order yang sudah lunas
+
+- Tanggal: 28 September 2026
+- Status: Open
+- Area: Service Order handover, payment atomik
+- Severity: Critical
+
+### Gejala
+
+Payment penuh atomik mengubah order dari `invoiced` ke `paid`, tetapi action `handover` masih hanya menerima status `invoiced`. Motor tidak dapat diserahkan setelah invoice lunas.
+
+### Sumber
+
+`recordServiceInvoicePayment` mentransisikan order ke `paid` saat outstanding mencapai nol. Guard action `handover` masih memakai kondisi `order.status !== "invoiced"`.
+
+### Dampak
+
+Kasir tidak dapat menutup workflow dan mencatat serah-terima motor walaupun pembayaran telah lengkap. Tidak ada jalur API yang valid menuju `completed`.
+
+### Rencana Perbaikan
+
+Ubah guard handover agar menerima status `paid`, pertahankan validasi `handoverReady`, lalu verifikasi transisi `paid → completed` beserta data penerima/signature.
+
+### Verifikasi
+
+`scripts/service-order-e2e.mjs` menguji partial payment, overpayment, full payment, dan handover. E2E diharapkan lulus setelah guard diperbaiki.
+
+## BUG-20260928-040 - Cashier melihat produk POS tetapi Open Bill mengembalikan PRODUCT_NOT_FOUND
+
+- Tanggal: 28 September 2026
+- Status: Open
+- Area: POS Open Bill, PostgreSQL RLS
+- Severity: Critical
+
+### Gejala
+
+`GET /api/v1/pos/products?registerId=...` mengembalikan produk dengan UUID valid dan stok positif untuk cashier. Payload Open Bill yang memakai ID tersebut ditolak `422 PRODUCT_NOT_FOUND`.
+
+### Sumber
+
+Payload script sesuai `openBillUpsertSchema`: `{ productId, quantity, discount }`. `resolveItems` membaca `app.products` memakai `SELECT ... FOR UPDATE`. Policy `products_read` mengizinkan semua user terautentikasi, tetapi policy `products_update` hanya mengizinkan owner, admin, dan warehouse. PostgreSQL menerapkan policy UPDATE pada locking read, sehingga row produk tersembunyi dari cashier dan jumlah hasil lebih kecil dari daftar `productIds`.
+
+### Dampak
+
+Role cashier yang memiliki permission `pos.sell` tidak dapat menyimpan Open Bill produk. Checkout produk berpotensi mengalami kegagalan sama karena memakai resolver dan locking query yang sama.
+
+### Rencana Perbaikan
+
+Pisahkan validasi katalog dari row lock produk atau tambahkan policy locking yang sempit untuk transaksi POS tanpa memberi hak perubahan katalog. Pertahankan lock pada inventory balance dan pastikan policy cashier hanya mengizinkan mutasi stok melalui ledger/trigger POS.
+
+### Verifikasi
+
+`scripts/security-api.mjs` sekarang memvalidasi register, UUID produk, stok positif, kontrak item, dan mencetak error plus fixture lengkap. Backend dinyatakan fixed setelah cashier dapat membuat Open Bill dan security matrix melanjutkan test IDOR checkout.

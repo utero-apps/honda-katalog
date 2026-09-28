@@ -21,7 +21,7 @@ describe("accessibility regressions", () => {
       expect(page).toContain(`<FieldError errors={fieldErrors} name="${field}" />`);
     }
     expect(page).toContain('htmlFor="login-email"');
-    expect(page).toContain('id="login-error" role="alert"');
+    expect(page).toMatch(/id="login-error"\s+role="alert"/);
   });
 
   it("preserves focus visibility, touch targets, and 360px layout", () => {

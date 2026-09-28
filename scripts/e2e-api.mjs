@@ -87,6 +87,22 @@ const posReceipt = (await request(`/api/v1/pos/sales/${sale.id}/receipt`)).body.
 if (!saleDetail.items?.some((item) => item.productId === product.id) || posReceipt.saleNumber !== sale.saleNumber) throw new Error("Receipt POS tidak konsisten");
 const voidedSale = (await request(`/api/v1/pos/sales/${sale.id}/void`, { method: "POST", body: JSON.stringify({ reason: "Pembersihan E2E POS" }) })).body.data;
 if (voidedSale.status !== "voided") throw new Error("Void sale POS gagal");
+if (process.env.POS_OPEN_BILL_E2E_ENABLED === "true") {
+  const serviceCatalog = (await request("/api/v1/pos/services")).body.data;
+  if (!Array.isArray(serviceCatalog) || !serviceCatalog[0]?.id || !serviceCatalog[0]?.fixedPrice) throw new Error("Katalog jasa POS invalid");
+  const openBillCustomer = (await request("/api/v1/operations/customers", { method: "POST", body: JSON.stringify({ name: `Open Bill E2E ${suffix}`, phone: `089${Date.now().toString().slice(-9)}` }) })).body.data;
+  const stockBeforeSave = Number((await request(`/api/v1/pos/products?registerId=${registers[0].id}&query=${encodeURIComponent(product.partCode)}`)).body.data.find((item) => item.id === product.id)?.availableQuantity);
+  const openBillPayload = { customerId: openBillCustomer.id, registerId: registers[0].id, items: [{ productId: product.id, quantity: "1", discount: "0" }, { serviceId: serviceCatalog[0].id, quantity: "1", discount: "0" }] };
+  const openBill = (await request("/api/v1/pos/open-bills", { method: "PUT", body: JSON.stringify(openBillPayload) })).body.data;
+  const restoredOpenBill = (await request(`/api/v1/pos/open-bills?customerId=${openBillCustomer.id}`)).body.data;
+  const stockAfterSave = Number((await request(`/api/v1/pos/products?registerId=${registers[0].id}&query=${encodeURIComponent(product.partCode)}`)).body.data.find((item) => item.id === product.id)?.availableQuantity);
+  if (restoredOpenBill?.id !== openBill.id || stockBeforeSave !== stockAfterSave) throw new Error("Restore atau non-reservation Open Bill gagal");
+  const openBillCheckout = { registerId: registers[0].id, customerId: openBillCustomer.id, openBillId: openBill.id, items: openBillPayload.items, payments: [{ method: "cash", amount: "1000000.00", idempotencyKey: `open-bill-payment-${suffix}` }], tax: "0", idempotencyKey: `open-bill-checkout-${suffix}` };
+  const openBillSale = (await request("/api/v1/pos/checkout", { method: "POST", body: JSON.stringify(openBillCheckout) })).body.data;
+  const openBillReplay = (await request("/api/v1/pos/checkout", { method: "POST", body: JSON.stringify(openBillCheckout) })).body.data;
+  const stockAfterCheckout = Number((await request(`/api/v1/pos/products?registerId=${registers[0].id}&query=${encodeURIComponent(product.partCode)}`)).body.data.find((item) => item.id === product.id)?.availableQuantity);
+  if (openBillReplay.id !== openBillSale.id || stockAfterCheckout !== stockBeforeSave - 1) throw new Error("Idempotency atau stok checkout Open Bill gagal");
+}
 const audit = await request("/api/v1/audit");
 if (!audit.body.data.some((event) => event.entityId === product.id)) throw new Error("Audit product tidak ditemukan");
 await request("/api/v1/auth/logout", { method: "POST", body: "{}" });

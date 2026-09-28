@@ -14,6 +14,7 @@ interface ProductRow {
   minimumStock: string;
   status: "active" | "inactive" | "archived";
   description: string | null;
+  imageUrl: string | null;
   barcodes: string[];
   compatibleModels: string[];
   compatibleModelIds: string[];
@@ -24,7 +25,7 @@ interface ProductRow {
 const productSelect = `
   SELECT p.id, p.part_code AS "partCode", p.name, p.category_id AS "categoryId",
     c.name AS category, p.het::text, p.hpp::text, p.unit,
-    p.minimum_stock::text AS "minimumStock", p.status, p.description,
+    p.minimum_stock::text AS "minimumStock", p.status, p.description, p.image_url AS "imageUrl",
     COALESCE((SELECT array_agg(pb.barcode ORDER BY pb.is_primary DESC, pb.barcode)
       FROM app.product_barcodes pb WHERE pb.product_id=p.id), ARRAY[]::text[]) AS barcodes,
     COALESCE((SELECT array_agg(vm.name ORDER BY vm.name)
@@ -100,10 +101,10 @@ async function replaceRelations(client: PoolClient, productId: string, barcodes:
 
 export async function createProduct(client: PoolClient, actorId: string, input: ProductInput) {
   const result = await client.query<{ id: string }>(`
-    INSERT INTO app.products(part_code,name,category_id,het,hpp,unit,minimum_stock,status,description,created_by,updated_by)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING id`,
+    INSERT INTO app.products(part_code,name,category_id,het,hpp,unit,minimum_stock,status,description,image_url,created_by,updated_by)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) RETURNING id`,
     [input.partCode, input.name, input.categoryId ?? null, input.het, input.hpp, input.unit,
-      input.minimumStock, input.status, input.description || null, actorId],
+      input.minimumStock, input.status, input.description || null, input.imageUrl || null, actorId],
   );
   const productId = result.rows[0].id;
   await replaceRelations(client, productId, input.barcodes, input.compatibleModelIds);
@@ -124,11 +125,12 @@ export async function updateProduct(client: PoolClient, actorId: string, id: str
     minimumStock: input.minimumStock ?? current.minimumStock,
     status: input.status ?? current.status,
     description: input.description === undefined ? current.description : input.description,
+    imageUrl: input.imageUrl === undefined ? current.imageUrl : input.imageUrl,
   };
   await client.query(`UPDATE app.products SET part_code=$1,name=$2,category_id=$3,het=$4,hpp=$5,unit=$6,
-    minimum_stock=$7,status=$8,description=$9,updated_by=$10,updated_at=now() WHERE id=$11`,
+    minimum_stock=$7,status=$8,description=$9,image_url=$10,updated_by=$11,updated_at=now() WHERE id=$12`,
     [next.partCode, next.name, next.categoryId, next.het, next.hpp, next.unit, next.minimumStock,
-      next.status, next.description || null, actorId, id],
+      next.status, next.description || null, next.imageUrl || null, actorId, id],
   );
   if (input.barcodes || input.compatibleModelIds) {
     await replaceRelations(

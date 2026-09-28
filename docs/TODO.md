@@ -32,6 +32,11 @@
 - [x] POS-009 [P1] Receipt print dan recovery retry tanpa duplikasi.
 - [x] POS-010 [P0] Unit, API, E2E, RLS, IDOR, replay, dan escalation tests.
 - [x] POS-011 [P0] Migration, production build, Docker smoke, dan route verification.
+- [ ] POS-012 [P0] Open Bill persisten per pelanggan dengan restore dan auto-save.
+- [ ] POS-013 [P0] Katalog jasa statis dan checkout campuran produk/jasa.
+- [ ] POS-014 [P1] Kartu POS persegi, dukungan gambar produk, dan responsive layout.
+- [ ] POS-015 [P0] Unit, API, E2E, RLS, IDOR, origin, dan conversion tests untuk Open Bill.
+- [ ] POS-016 [P0] Migration, production build, Docker smoke, dan verifikasi Open Bill.
 
 ## 0B. Service Reception
 
@@ -188,3 +193,16 @@
 - [x] REL-001 [P0] Tidak ada runtime Supabase reference.
 - [x] REL-002 [P0] Main Phase 1-4 E2E pass.
 - [x] REL-003 [P0] Docker smoke dan final security audit pass.
+
+## 11. Service Order Workflow Hardening
+
+- [x] SOW-001 [P0] Dokumentasikan workflow Service Order dan matriks test P0-P3.
+- [x] SOW-002 [P0] Tambah route test untuk origin, transisi, stock reservation, consume idempotent, dan QC permission.
+- [x] SOW-003 [P1] Tambah E2E diagnosis sampai completed dengan invoice dan payment replay.
+- [ ] SOW-004 [P0] Larang `quality_check → completed` agar invoice dan pembayaran tidak dapat dilewati.
+- [ ] SOW-005 [P0] Larang invoice mengubah order terminal `completed` kembali menjadi `invoiced`.
+- [ ] SOW-006 [P0] Verifikasi rekonsiliasi pembayaran parsial/penuh dan penolakan overpayment secara atomik.
+- [ ] SOW-007 [P1] Tambah validasi order untuk action job/QC dan error `SERVICE_ORDER_NOT_FOUND`.
+- [ ] SOW-008 [P0] Verifikasi handover menyimpan penerima/waktu keluar dan memblokir invoice belum lunas.
+- [ ] SOW-009 [P1] Jalankan E2E workflow pada Docker/database setelah hardening P0 selesai.
+- [ ] SOW-010 [P0] Perbaiki handover agar menerima Service Order `paid` setelah payment atomik.

@@ -10,6 +10,19 @@ export type Product = {
   quantity?: number;
   availableQuantity?: number;
   minimumStock?: number;
+  imageUrl?: string | null;
+};
+
+export type PosService = {
+  id: string;
+  code: string;
+  name: string;
+  category?: string | null;
+  price?: number;
+  fixedPrice?: number;
+  unit?: string;
+  description: string | null;
+  imageUrl?: string | null;
 };
 
 export type Customer = {
@@ -27,7 +40,34 @@ export type PosRegister = {
   warehouseName: string;
 };
 
-export type CartItem = Product & { cartQuantity: number };
+export type CartItem = (Product | PosService) & {
+  cartQuantity: number;
+  itemType: "product" | "service";
+  unitPrice: number;
+};
+
+export type OpenBill = {
+  id: string;
+  customerId: string;
+  registerId: string;
+  notes?: string | null;
+  items: Array<{
+    itemType?: "product" | "service";
+    productId?: string | null;
+    serviceId?: string | null;
+    quantity: number | string;
+    product?: Product | null;
+    service?: PosService | null;
+    name?: string;
+    code?: string;
+    unit?: string;
+    price?: number | string;
+    imageUrl?: string | null;
+    itemCode?: string;
+    itemName?: string;
+    unitPrice?: number | string;
+  }>;
+};
 
 export type PaymentMethod = "cash" | "transfer" | "card" | "other";
 

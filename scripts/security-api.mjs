@@ -66,6 +66,41 @@ try {
   if (mechanicCheckout.status !== 403) throw new Error(`Mechanic dapat checkout POS: ${mechanicCheckout.status}`);
   const cashierVoid = await fetch(`${baseUrl}/api/v1/pos/sales/${crypto.randomUUID()}/void`, { method: "POST", headers: { "content-type": "application/json", origin: baseUrl, cookie: cashierCookie }, body: JSON.stringify({ reason: "Privilege test" }) });
   if (cashierVoid.status !== 403) throw new Error(`Cashier dapat void POS: ${cashierVoid.status}`);
+  if (process.env.POS_OPEN_BILL_SECURITY_ENABLED === "true") {
+    const anonymousServices = await fetch(`${baseUrl}/api/v1/pos/services`);
+    if (anonymousServices.status !== 401) throw new Error(`POS services anonymous tidak ditolak: ${anonymousServices.status}`);
+    const anonymousBill = await fetch(`${baseUrl}/api/v1/pos/open-bills?customerId=${crypto.randomUUID()}`);
+    if (anonymousBill.status !== 401) throw new Error(`POS open bill anonymous tidak ditolak: ${anonymousBill.status}`);
+    const crossOriginBill = await fetch(`${baseUrl}/api/v1/pos/open-bills`, { method: "PUT", headers: { "content-type": "application/json", origin: "https://attacker.invalid", cookie: cashierCookie }, body: "{}" });
+    if (crossOriginBill.status !== 403) throw new Error(`Cross-origin POS open bill tidak ditolak: ${crossOriginBill.status}`);
+    const mechanicServices = await fetch(`${baseUrl}/api/v1/pos/services`, { headers: { cookie: mechanicCookie } });
+    if (mechanicServices.status !== 403) throw new Error(`Mechanic dapat membaca jasa POS: ${mechanicServices.status}`);
+    const mechanicBill = await fetch(`${baseUrl}/api/v1/pos/open-bills?customerId=${crypto.randomUUID()}`, { headers: { cookie: mechanicCookie } });
+    if (mechanicBill.status !== 403) throw new Error(`Mechanic dapat membaca Open Bill POS: ${mechanicBill.status}`);
+    const foreignBill = await fetch(`${baseUrl}/api/v1/pos/open-bills?customerId=${crypto.randomUUID()}`, { headers: { cookie: cashierCookie } });
+    if (foreignBill.status !== 200 || (await foreignBill.json()).data !== null) throw new Error(`Lookup Open Bill kosong tidak konsisten: ${foreignBill.status}`);
+    const requestAsCashier = async (path, init = {}) => {
+      const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { "content-type": "application/json", origin: baseUrl, cookie: cashierCookie, ...init.headers } });
+      const text = await response.text();
+      return { response, body: text ? JSON.parse(text) : null };
+    };
+    const primaryCustomer = (await requestAsCashier("/api/v1/operations/customers", { method: "POST", body: JSON.stringify({ name: `Open Bill Owner ${suffix}`, phone: `0851${Date.now().toString().slice(-8)}` }) })).body.data;
+    const secondaryCustomer = (await requestAsCashier("/api/v1/operations/customers", { method: "POST", body: JSON.stringify({ name: `Open Bill Other ${suffix}`, phone: `0852${Date.now().toString().slice(-8)}` }) })).body.data;
+    const registers = (await requestAsCashier("/api/v1/pos/registers")).body.data;
+    const register = registers[0];
+    if (!register?.id) throw new Error(`Fixture Open Bill tidak memiliki register aktif: ${JSON.stringify({ registers })}`);
+    const productsResult = await requestAsCashier(`/api/v1/pos/products?registerId=${register.id}&pageSize=100`);
+    if (!productsResult.response.ok || !Array.isArray(productsResult.body?.data)) throw new Error(`Fixture POS products invalid: ${productsResult.response.status} ${JSON.stringify(productsResult.body?.error || productsResult.body)}`);
+    const products = productsResult.body.data;
+    const availableProduct = products.find((item) => typeof item.id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id) && Number.isFinite(Number(item.availableQuantity)) && Number(item.availableQuantity) > 0);
+    if (!availableProduct) throw new Error(`Fixture Open Bill tidak menemukan produk ber-ID valid dan stok positif: ${JSON.stringify({ registerId: register.id, products: products.map((item) => ({ id: item.id, partCode: item.partCode, availableQuantity: item.availableQuantity })) })}`);
+    const openBillItem = { productId: availableProduct.id, quantity: "1", discount: "0" };
+    const openBillResult = await requestAsCashier("/api/v1/pos/open-bills", { method: "PUT", body: JSON.stringify({ customerId: primaryCustomer.id, registerId: register.id, items: [openBillItem] }) });
+    if (!openBillResult.response.ok) throw new Error(`Cashier gagal membuat Open Bill: ${openBillResult.response.status} ${JSON.stringify({ error: openBillResult.body?.error, registerId: register.id, product: { id: availableProduct.id, partCode: availableProduct.partCode, availableQuantity: availableProduct.availableQuantity }, item: openBillItem })}`);
+    const openBill = openBillResult.body.data;
+    const customerMismatch = await requestAsCashier("/api/v1/pos/checkout", { method: "POST", body: JSON.stringify({ registerId: register.id, customerId: secondaryCustomer.id, openBillId: openBill.id, items: [openBillItem], payments: [{ method: "cash", amount: "1000000.00", idempotencyKey: `open-bill-idor-payment-${suffix}` }], tax: "0", idempotencyKey: `open-bill-idor-${suffix}` }) });
+    if (customerMismatch.response.status !== 404 || customerMismatch.body?.error?.code !== "OPEN_BILL_NOT_FOUND") throw new Error(`Checkout Open Bill customer lain tidak ditolak aman: ${customerMismatch.response.status} ${JSON.stringify(customerMismatch.body)}`);
+  }
 
   if (process.env.SERVICE_RECEPTION_SECURITY_ENABLED === "true") {
     const receptionBase = "/api/v1/operations/service-reception";
