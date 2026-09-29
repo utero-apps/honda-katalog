@@ -1119,3 +1119,72 @@ Tambahkan dropzone dan pemilih file untuk JPEG, PNG, WebP, dan AVIF maksimal 5 M
 ### Verifikasi
 
 Unit test memvalidasi format gambar, spoof MIME, batas ukuran, URL protocol-relative, dan kontrak UI. Typecheck, lint, seluruh test, build Docker, health check, serta uji upload browser dijalankan setelah patch.
+
+## BUG-20260929-043 - Migrasi database kosong gagal sebelum seed role
+
+- Tanggal: 29 September 2026
+- Status: Fixed
+- Area: Bootstrap PostgreSQL
+- Severity: High
+
+### Gejala
+
+Migrasi berhenti pada `006_pos.sql` dengan foreign key `role_permissions_role_fkey` ketika dijalankan pada database kosong.
+
+### Sumber
+
+Migration POS menambahkan permission role sebelum `scripts/seed.mjs` membuat master role.
+
+### Perbaikan
+
+Runner migration memastikan enam master role ada tepat sebelum migration POS. Jalur ini idempotent dan tidak mengubah migration lama yang sudah diterapkan.
+
+### Verifikasi
+
+Migration `001` sampai `024` dan seed berhasil pada PostgreSQL 16 terisolasi.
+
+## BUG-20260929-044 - Policy feedback pelanggan gagal dikompilasi
+
+- Tanggal: 29 September 2026
+- Status: Fixed
+- Area: Rating pelanggan, PostgreSQL RLS
+- Severity: High
+
+### Gejala
+
+Migration `020_customer_feedback_tokens.sql` gagal dengan syntax error dekat `AND`.
+
+### Sumber
+
+Kurung ekspresi `WITH CHECK` tertutup terlalu awal sebelum validasi relasi Service Order.
+
+### Perbaikan
+
+Perbaiki grouping policy dan tambah policy sempit untuk transaksi sistem membaca Service Order selesai serta hasil feedback miliknya.
+
+### Verifikasi
+
+Migration berhasil; E2E mencatat rating 5, menolak replay token, dan menolak penerbitan token setelah feedback tersimpan.
+
+## BUG-20260929-045 - Endpoint rating publik gagal setelah handover
+
+- Tanggal: 29 September 2026
+- Status: Fixed
+- Area: Rating pelanggan, forced RLS
+- Severity: High
+
+### Gejala
+
+Tautan rating valid mengembalikan HTTP 500 meski Service Order sudah `completed` dan sudah diserahterimakan.
+
+### Sumber
+
+Transaksi sistem tidak memiliki policy baca Service Order selesai. `INSERT ... RETURNING` feedback juga tidak memiliki policy baca sistem, dan referensi `customer_id` pada policy lama terikat ke alias yang salah.
+
+### Perbaikan
+
+Tambah policy baca sistem yang hanya berlaku pada Service Order selesai dan feedback, lalu kualifikasi relasi customer serta mekanik terhadap row feedback.
+
+### Verifikasi
+
+E2E terisolasi lulus untuk handover, tepat satu follow-up, tepat satu reminder 17.000 km, rating pelanggan, replay protection, dan duplicate issue protection.

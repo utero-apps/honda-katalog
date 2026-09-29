@@ -1,62 +1,35 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { processDueCommunications } from "./due-communications";
 
-function clientWith(query: ReturnType<typeof vi.fn>) {
-  return { query } as never;
-}
+const message = { id:"11111111-1111-4111-8111-111111111111", idempotencyKey:"service_reminder:abc:1", channel:"whatsapp", destination:"628123", payload:{kind:"service_reminder"}, attempts:0, maxAttempts:8 };
+const client = (query:ReturnType<typeof vi.fn>) => ({query}) as never;
+afterEach(() => { delete process.env.AUTOMATION_WHATSAPP_PROVIDER_URL; delete process.env.AUTOMATION_WHATSAPP_PROVIDER_TOKEN; vi.unstubAllGlobals(); });
 
 describe("processDueCommunications", () => {
-  it("does not claim delivery when no provider is configured", async () => {
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [{ acquired: true }] })
-      .mockResolvedValueOnce({ rows: [{ id: "11111111-1111-4111-8111-111111111111", dueAt: "2026-09-29T00:00:00.000Z", channel: "whatsapp", entityType: "customer_follow_up" }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
-
-    const result = await processDueCommunications(
-      clientWith(query),
-      { id: "22222222-2222-4222-8222-222222222222", requestId: "33333333-3333-4333-8333-333333333333" },
-      { limit: 10, now: new Date("2026-09-29T01:00:00.000Z") },
-    );
-
-    expect(result).toEqual({ status: "completed", scanned: 1, logged: 1, alreadyLogged: 0, deliveryStatus: "provider_unavailable" });
-    expect(query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE app.customer_follow_ups"), expect.anything());
-    expect(query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE app.service_reminders"), expect.anything());
-    expect(query.mock.calls.at(-1)?.[1]?.[6]).toContain("provider_unavailable");
+  it("keeps retry status when provider is unavailable", async () => {
+    const query=vi.fn().mockResolvedValueOnce({rows:[{acquired:true}]}).mockResolvedValueOnce({rowCount:1}).mockResolvedValueOnce({rows:[message]}).mockResolvedValueOnce({rowCount:1});
+    const result=await processDueCommunications(client(query),{limit:10,now:new Date("2026-09-29T00:00:00Z"),workerId:"worker"});
+    expect(result).toMatchObject({enqueued:1,claimed:1,delivered:0,retried:1,providerUnavailable:1});
+    expect(query.mock.calls[1][0]).toContain("f.channel='email' AND c.email IS NOT NULL");
+    expect(query.mock.calls[1][0]).toContain("f.channel='whatsapp' AND c.phone IS NOT NULL");
+    expect(query.mock.calls[3][1][1]).toBe("retry");
+    expect(query.mock.calls[3][1][4]).toBe("provider_unavailable");
+    expect(new Date(query.mock.calls[3][1][3]).getTime()).toBeGreaterThan(new Date("2026-09-29T00:00:00Z").getTime());
+    expect(query.mock.calls[3][0]).not.toContain("status='delivered'");
   });
-
-  it("skips an item already logged by an earlier run", async () => {
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [{ acquired: true }] })
-      .mockResolvedValueOnce({ rows: [{ id: "11111111-1111-4111-8111-111111111111", dueAt: "2026-09-29T00:00:00.000Z", channel: "other", entityType: "service_reminder" }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ exists: 1 }], rowCount: 1 });
-
-    const result = await processDueCommunications(
-      clientWith(query),
-      { id: "22222222-2222-4222-8222-222222222222", requestId: "33333333-3333-4333-8333-333333333333" },
-      { limit: 10 },
-    );
-
-    expect(result).toMatchObject({ logged: 0, alreadyLogged: 1 });
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(query.mock.calls[3][1]).toEqual([
-      "automation.communication.provider_unavailable", "service_reminder",
-      "11111111-1111-4111-8111-111111111111", "2026-09-29T00:00:00.000Z",
-    ]);
+  it("uses provider idempotency and marks delivered after success", async () => {
+    process.env.AUTOMATION_WHATSAPP_PROVIDER_URL="https://provider.example/send";
+    process.env.AUTOMATION_WHATSAPP_PROVIDER_TOKEN="secret-not-logged";
+    const fetchMock=vi.fn().mockResolvedValue({ok:true,json:async()=>({id:"provider-1"})}); vi.stubGlobal("fetch",fetchMock);
+    const query=vi.fn().mockResolvedValueOnce({rows:[{acquired:true}]}).mockResolvedValueOnce({rowCount:0}).mockResolvedValueOnce({rows:[message]}).mockResolvedValueOnce({rowCount:1});
+    const result=await processDueCommunications(client(query),{limit:10,workerId:"worker"});
+    expect(result.delivered).toBe(1);
+    expect(fetchMock.mock.calls[0][1].headers["idempotency-key"]).toBe(message.idempotencyKey);
+    expect(query.mock.calls[3][0]).toContain("status='delivered'");
   });
-
-  it("returns busy when another worker owns the advisory lock", async () => {
-    const query = vi.fn().mockResolvedValueOnce({ rows: [{ acquired: false }] });
-    await expect(processDueCommunications(
-      clientWith(query),
-      { id: "22222222-2222-4222-8222-222222222222", requestId: "33333333-3333-4333-8333-333333333333" },
-      { limit: 10 },
-    )).resolves.toMatchObject({ status: "busy", scanned: 0 });
+  it("returns busy without claiming", async () => {
+    const query=vi.fn().mockResolvedValueOnce({rows:[{acquired:false}]});
+    await expect(processDueCommunications(client(query),{limit:10})).resolves.toMatchObject({status:"busy",claimed:0});
     expect(query).toHaveBeenCalledTimes(1);
   });
 });
-

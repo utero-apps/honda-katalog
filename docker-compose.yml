@@ -36,6 +36,11 @@ services:
       - DATABASE_PASSWORD=${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD is required}
       - PRODUCT_IMAGE_DIR=/app/data/product-images
       - VEHICLE_IMAGE_DIR=/app/data/vehicle-images
+      - AUTOMATION_JOB_TOKEN=${AUTOMATION_JOB_TOKEN:?AUTOMATION_JOB_TOKEN is required}
+      - AUTOMATION_EMAIL_PROVIDER_URL=${AUTOMATION_EMAIL_PROVIDER_URL:-}
+      - AUTOMATION_EMAIL_PROVIDER_TOKEN=${AUTOMATION_EMAIL_PROVIDER_TOKEN:-}
+      - AUTOMATION_WHATSAPP_PROVIDER_URL=${AUTOMATION_WHATSAPP_PROVIDER_URL:-}
+      - AUTOMATION_WHATSAPP_PROVIDER_TOKEN=${AUTOMATION_WHATSAPP_PROVIDER_TOKEN:-}
     networks:
       - honda-internal
       - carubra-network
@@ -46,6 +51,22 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  automation-scheduler:
+    image: node:22-alpine
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do node /workspace/scripts/process-due-communications.mjs || true; sleep $${AUTOMATION_INTERVAL_SECONDS:-60}; done"]
+    environment:
+      - APP_BASE_URL=http://catalog-product:7780
+      - AUTOMATION_JOB_TOKEN=${AUTOMATION_JOB_TOKEN:?AUTOMATION_JOB_TOKEN is required}
+      - AUTOMATION_BATCH_LIMIT=${AUTOMATION_BATCH_LIMIT:-100}
+      - AUTOMATION_INTERVAL_SECONDS=${AUTOMATION_INTERVAL_SECONDS:-60}
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+    networks:
+      - honda-internal
+    depends_on:
+      - catalog-product
 
   db-tools:
     build:

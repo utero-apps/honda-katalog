@@ -15,7 +15,7 @@ describe("GET /api/v1/intelligence/mechanics/[id]", () => {
 
   it("returns scoped mechanic track with numeric metrics", async () => {
     mocks.query
-      .mockResolvedValueOnce({ rows: [{ id: mechanicId, name: "Budi", email: "budi@honda.local", employeeCode: "M-01", isActive: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: mechanicId, name: "Budi", email: "budi@honda.local", employeeCode: "M-01", isActive: true, feePercent: "12.5", monthlyTargetOrders: 40, weeklyCapacityOrders: 12, bonusPerCompletedOrder: "25000" }] })
       .mockResolvedValueOnce({ rows: [{ totalOrders: 4, completedOrders: 3, activeOrders: 1, averageHours: "2.5", fees: "125000", jobsCompleted: 5, partsConsumed: "7.5", qualityPassed: 2, qualityFailed: 1, totalServiceValue: "50000", averageServiceValue: "12500" }] })
       .mockResolvedValueOnce({ rows: [{ id: "order-1", consumedParts: "2" }] })
       .mockResolvedValueOnce({ rows: [{ id: "job-1", price: "50000" }] })
@@ -26,7 +26,7 @@ describe("GET /api/v1/intelligence/mechanics/[id]", () => {
     const response = await GET(new Request("http://localhost/api/v1/intelligence/mechanics/test") as never, context);
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ data: { profile: { name: "Budi" }, performance: { completionRate: 75, averageHours: 2.5, fees: 125000, partsConsumed: 7.5, totalServiceValue: 50000, averageServiceValue: 12500 }, orders: [{ consumedParts: 2 }], jobs: [{ price: 50000 }], parts: [{ quantity: 1.5 }], fees: [{ amount: 125000 }] } });
+    await expect(response.json()).resolves.toMatchObject({ data: { profile: { name: "Budi", feePercent: 12.5, monthlyTargetOrders: 40, weeklyCapacityOrders: 12, bonusPerCompletedOrder: 25000 }, performance: { completionRate: 75, averageHours: 2.5, fees: 125000, partsConsumed: 7.5, totalServiceValue: 50000, averageServiceValue: 12500, bonus: 75000 }, orders: [{ consumedParts: 2 }], jobs: [{ price: 50000 }], parts: [{ quantity: 1.5 }], fees: [{ amount: 125000 }] } });
     expect(mocks.requirePermission).toHaveBeenCalledWith(expect.anything(), expect.any(String), "reports.read");
   });
 

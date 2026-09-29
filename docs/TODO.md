@@ -254,7 +254,7 @@
 - [x] P9-007 [P3] Runner komunikasi jatuh tempo memakai lock, idempotensi per jadwal, audit, dan status provider eksplisit.
 - [x] P9-008 [P0] Unit/API tests, typecheck, production build, migration, RLS verification, Docker restart, dan read-only health/API smoke lulus.
 - [x] P9-009 [P1] Rating pelanggan tercatat pada SO selesai; target bulanan, kapasitas mingguan, dan bonus per order memiliki schema, endpoint admin, serta KPI detail mekanik.
-- [ ] P9-012 [P1] Form pengaturan target/kapasitas/bonus owner-admin dan rating langsung oleh pelanggan (bukan input petugas) belum tersedia.
-- [ ] P9-013 [P0] E2E write-path handover → jadwal CRM → feedback pada data uji terisolasi, termasuk matrix RLS cashier, belum dijalankan terhadap database aktif.
-- [ ] P9-010 [P3] Pengiriman WhatsApp/email otomatis, outbox retry, dan scheduler aktif memerlukan provider serta kredensial operasional; saat ini tersedia audit jatuh tempo dan runner manual.
-- [ ] P9-011 [P2] Tutup temuan RLS lama pada finance, warehouse, dan aset handover di luar scope CRM setelah penilaian dampak seluruh modul.
+- [x] P9-012 [P1] Form pengaturan target/kapasitas/bonus owner-admin dan rating langsung pelanggan memakai tautan aman sekali pakai.
+- [x] P9-013 [P0] E2E write-path handover → jadwal CRM → feedback serta matrix RLS finance, warehouse, cashier, POS, dan handover lulus pada database uji terisolasi.
+- [x] P9-010 [P3] Outbox WhatsApp/email, retry, dead-letter, idempotency, scheduler token, dan provider opt-in tersedia; kredensial provider tetap konfigurasi operasional deployment.
+- [x] P9-011 [P2] RLS lama finance, warehouse, dan aset handover diperketat tanpa memutus pembayaran, POS, atau stock movement kasir.

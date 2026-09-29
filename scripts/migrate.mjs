@@ -52,6 +52,12 @@ try {
     }
     await client.query("BEGIN");
     try {
+      if (file === "006_pos.sql") {
+        await client.query(`INSERT INTO app.roles(code,name) VALUES
+          ('owner','Owner'),('admin','Admin'),('cashier','Cashier'),
+          ('mechanic','Mechanic'),('warehouse','Warehouse'),('finance','Finance')
+          ON CONFLICT (code) DO NOTHING`);
+      }
       await client.query(sql);
       await client.query("INSERT INTO public.schema_migrations(version, checksum) VALUES ($1, $2)", [file, checksum]);
       await client.query("COMMIT");

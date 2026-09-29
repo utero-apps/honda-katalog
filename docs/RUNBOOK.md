@@ -27,6 +27,9 @@
 
 ## Otomasi CRM
 
-- Jalankan `npm run automation:due` melalui scheduler lokal setelah mengisi `AUTOMATION_SESSION_COOKIE` dengan sesi owner/admin dan `APP_BASE_URL` bila aplikasi bukan di `http://localhost:7780`.
-- Job memakai advisory lock, aman dijalankan berulang, dan mencatat item jatuh tempo ke `app.audit_events` per jadwal.
-- Tanpa provider pesan, hasil selalu `provider_unavailable`; status follow-up/reminder tidak diubah menjadi terkirim atau selesai.
+- Isi `AUTOMATION_JOB_TOKEN` dengan token acak minimal 24 karakter yang sama pada aplikasi dan scheduler. Token ini bukan session cookie dan jangan ditulis ke log.
+- `docker compose up -d` mengaktifkan `automation-scheduler` setiap 60 detik. Ubah interval lewat `AUTOMATION_INTERVAL_SECONDS` dan batch lewat `AUTOMATION_BATCH_LIMIT`.
+- Provider bersifat opt-in. Isi pasangan `AUTOMATION_EMAIL_PROVIDER_URL`/`AUTOMATION_EMAIL_PROVIDER_TOKEN` atau `AUTOMATION_WHATSAPP_PROVIDER_URL`/`AUTOMATION_WHATSAPP_PROVIDER_TOKEN`. Production hanya menerima URL HTTPS.
+- Provider menerima JSON `{ channel, to, message }` dan header `Idempotency-Key`. Provider wajib menghormati kunci ini agar retry tidak menggandakan pengiriman.
+- Tanpa provider, outbox tetap berstatus `retry` dengan `last_error_code=provider_unavailable`; tidak ada status `delivered` palsu. Backoff eksponensial dibatasi enam jam, lease macet direbut kembali setelah sepuluh menit, dan item masuk `dead` setelah batas percobaan.
+- Inspeksi aman: `SELECT id,entity_type,channel,status,attempts,next_attempt_at,last_error_code FROM app.automation_outbox ORDER BY created_at DESC LIMIT 100;`. Jangan tampilkan `destination`, `payload`, token, atau authorization header dalam log insiden.

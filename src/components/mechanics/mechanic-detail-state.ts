@@ -1,4 +1,29 @@
 export type MechanicPeriod = { from: string; to: string };
+export type MechanicConfigInput = {
+  userId: string;
+  employeeCode: string;
+  feePercent: number;
+  isActive: boolean;
+  monthlyTargetOrders: string;
+  weeklyCapacityOrders: string;
+  bonusPerCompletedOrder: string;
+};
+
+export function canManageMechanics(role: string | null | undefined) {
+  return role === "owner" || role === "admin";
+}
+
+export function buildMechanicManagementPayload(input: MechanicConfigInput) {
+  return {
+    userId: input.userId,
+    employeeCode: input.employeeCode,
+    feePercent: input.feePercent,
+    isActive: input.isActive,
+    monthlyTargetOrders: Number(input.monthlyTargetOrders),
+    weeklyCapacityOrders: Number(input.weeklyCapacityOrders),
+    bonusPerCompletedOrder: Number(input.bonusPerCompletedOrder),
+  };
+}
 
 export function buildMechanicDetailUrl(mechanicId: string, period: MechanicPeriod) {
   const query = new URLSearchParams();

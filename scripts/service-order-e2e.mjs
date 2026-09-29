@@ -4,6 +4,7 @@ const baseUrl = process.env.E2E_BASE_URL || "http://127.0.0.1:7780";
 const email = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@honda.local";
 const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 if (!password) throw new Error("BOOTSTRAP_ADMIN_PASSWORD wajib diisi");
+if (process.env.E2E_ISOLATED !== "1") throw new Error("Service Order E2E menulis data. Gunakan database uji terisolasi dan set E2E_ISOLATED=1");
 
 let cookie = "";
 async function request(path, init = {}, expected = 200) {
@@ -90,4 +91,24 @@ if (detail.status !== "completed" || detail.jobs.length !== 1 || detail.qualityC
 const transitions = detail.history.map((item) => item.status ?? item.to_status ?? item.toStatus);
 for (const expected of ["open", "in_progress", "quality_check", "invoiced", "paid", "completed"]) if (!transitions.includes(expected)) throw new Error(`History tidak memuat status ${expected}`);
 
-console.log(JSON.stringify({ verified: true, serviceOrderId: order.id, invoiceId: invoice.id, finalStatus: detail.status }));
+const profile = (await request(`/api/v1/operations/customers/${customer.id}/profile`)).data;
+const matchingFollowUps = profile.followUps.filter((item) => item.notes === "Tindak lanjut kepuasan setelah serah terima");
+const matchingReminders = profile.reminders.filter((item) => item.vehicleId === vehicle.id);
+if (matchingFollowUps.length !== 1 || matchingReminders.length !== 1) throw new Error("Handover wajib menghasilkan tepat satu follow-up dan reminder untuk pelanggan uji");
+if (matchingFollowUps[0].status !== "pending" || matchingReminders[0].status !== "pending") throw new Error("Jadwal CRM tidak dimulai dalam status pending");
+if (Number(matchingReminders[0].odometerDue) !== 17000) throw new Error("Reminder servis umum wajib jatuh tempo pada 17.000 km");
+const dueInDays = (timestamp) => (new Date(timestamp).getTime() - Date.now()) / 86400000;
+if (Math.abs(dueInDays(matchingFollowUps[0].dueAt) - 3) > 0.1 || Math.abs(dueInDays(matchingReminders[0].dueAt) - 90) > 0.1) throw new Error("Tanggal follow-up atau reminder tidak sesuai kebijakan servis umum");
+
+const feedbackLink = (await request("/api/v1/public/service-feedback/tokens", { method: "POST", body: JSON.stringify({ serviceOrderId: order.id }) })).data;
+if (!/^\/service-feedback\/[A-Za-z0-9_-]{43}$/.test(feedbackLink.path)) throw new Error("Tautan rating pelanggan tidak valid");
+const feedbackPath = `/api/v1/public${feedbackLink.path}`;
+await request(feedbackPath);
+const feedback = (await request(feedbackPath, { method: "POST", body: JSON.stringify({ rating: 5, comments: "Layanan uji selesai" }) })).data;
+if (feedback.rating !== 5) throw new Error("Rating pelanggan gagal dicatat");
+const replay = await request(feedbackPath, { method: "POST", body: JSON.stringify({ rating: 1 }) }, 409);
+if (replay.error?.code !== "FEEDBACK_TOKEN_USED") throw new Error("Token rating sekali pakai tidak menolak replay");
+const duplicateLink = await request("/api/v1/public/service-feedback/tokens", { method: "POST", body: JSON.stringify({ serviceOrderId: order.id }) }, 409);
+if (duplicateLink.error?.code !== "FEEDBACK_ALREADY_SUBMITTED") throw new Error("Service Order yang telah dinilai masih dapat menerbitkan tautan rating");
+
+console.log(JSON.stringify({ verified: true, serviceOrderId: order.id, invoiceId: invoice.id, finalStatus: detail.status, followUpId: matchingFollowUps[0].id, reminderId: matchingReminders[0].id, feedbackRating: feedback.rating }));

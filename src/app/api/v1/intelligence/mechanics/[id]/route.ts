@@ -35,11 +35,12 @@ export async function GET(
             email: string;
             employeeCode: string;
             isActive: boolean;
+            feePercent: string;
             monthlyTargetOrders: number | null;
             weeklyCapacityOrders: number | null;
             bonusPerCompletedOrder: string | null;
           }>(
-            `SELECT u.id,u.display_name AS name,u.email,m.employee_code AS "employeeCode",m.is_active AS "isActive",
+            `SELECT u.id,u.display_name AS name,u.email,m.employee_code AS "employeeCode",m.is_active AS "isActive",m.fee_percent::text AS "feePercent",
                     m.monthly_target_orders AS "monthlyTargetOrders",m.weekly_capacity_orders AS "weeklyCapacityOrders",
                     m.bonus_per_completed_order::text AS "bonusPerCompletedOrder"
              FROM app.mechanics m
@@ -132,7 +133,7 @@ export async function GET(
         const activeOrders = numeric(performance.activeOrders);
         const bonusPerCompletedOrder = profile.bonusPerCompletedOrder == null ? null : numeric(profile.bonusPerCompletedOrder);
         return {
-          profile: { ...profile, bonusPerCompletedOrder },
+          profile: { ...profile, feePercent: numeric(profile.feePercent), bonusPerCompletedOrder },
           performance: {
             totalOrders: numeric(performance.totalOrders),
             completedOrders,
