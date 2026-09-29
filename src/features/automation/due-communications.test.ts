@@ -10,8 +10,9 @@ describe("processDueCommunications", () => {
     const query=vi.fn().mockResolvedValueOnce({rows:[{acquired:true}]}).mockResolvedValueOnce({rowCount:1}).mockResolvedValueOnce({rows:[message]}).mockResolvedValueOnce({rowCount:1});
     const result=await processDueCommunications(client(query),{limit:10,now:new Date("2026-09-29T00:00:00Z"),workerId:"worker"});
     expect(result).toMatchObject({enqueued:1,claimed:1,delivered:0,retried:1,providerUnavailable:1});
-    expect(query.mock.calls[1][0]).toContain("f.channel='email' AND c.email IS NOT NULL");
-    expect(query.mock.calls[1][0]).toContain("f.channel='whatsapp' AND c.phone IS NOT NULL");
+    expect(query.mock.calls[1][0]).toContain("c.communication_consent");
+    expect(query.mock.calls[1][0]).toContain("f.channel='email' AND c.preferred_channel='email' AND c.email IS NOT NULL");
+    expect(query.mock.calls[1][0]).toContain("f.channel='whatsapp' AND c.preferred_channel='whatsapp' AND c.phone IS NOT NULL");
     expect(query.mock.calls[3][1][1]).toBe("retry");
     expect(query.mock.calls[3][1][4]).toBe("provider_unavailable");
     expect(new Date(query.mock.calls[3][1][3]).getTime()).toBeGreaterThan(new Date("2026-09-29T00:00:00Z").getTime());

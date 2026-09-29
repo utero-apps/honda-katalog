@@ -12,6 +12,7 @@
 - Backup: `npm run db:backup`.
 - Restore: `npm run db:restore -- backups/<file>.dump`.
 - Setelah restore, jalankan `npm run db:verify`.
+- Target Docker `db-tools` wajib memuat `postgresql-client`; rebuild target setelah perubahan `Dockerfile` sebelum backup release.
 
 ## Incident
 
@@ -33,3 +34,12 @@
 - Provider menerima JSON `{ channel, to, message }` dan header `Idempotency-Key`. Provider wajib menghormati kunci ini agar retry tidak menggandakan pengiriman.
 - Tanpa provider, outbox tetap berstatus `retry` dengan `last_error_code=provider_unavailable`; tidak ada status `delivered` palsu. Backoff eksponensial dibatasi enam jam, lease macet direbut kembali setelah sepuluh menit, dan item masuk `dead` setelah batas percobaan.
 - Inspeksi aman: `SELECT id,entity_type,channel,status,attempts,next_attempt_at,last_error_code FROM app.automation_outbox ORDER BY created_at DESC LIMIT 100;`. Jangan tampilkan `destination`, `payload`, token, atau authorization header dalam log insiden.
+
+## Customer Master Page 5
+
+- Jalankan migration `025_customer_master_management.sql` sebelum `026_customer_communication_preferences.sql`; runner migration normal menangani urutan tersebut lewat `npm run db:migrate`.
+- Migration 025 menambah identitas telepon/email ternormalisasi, histori merge, histori kepemilikan kendaraan, indeks unik master aktif, dan RLS histori.
+- Migration 026 menambah consent komunikasi dengan default aman `false`. Jangan mengubah default menjadi opt-in saat import, seed, restore, atau koreksi data.
+- Setelah migration, jalankan `npm test -- src/features/customer-management`, `npm run typecheck`, dan `E2E_ISOLATED=1 npm run e2e:customer-master` terhadap database uji terisolasi. Script sengaja menolak database non-isolasi.
+- Ekspor customer memerlukan permission `users.manage`. File CSV memuat PII; simpan hanya pada lokasi terkontrol, jangan lampirkan ke log/tiket, dan hapus sesuai kebijakan retensi organisasi.
+- Saat merge pelanggan, target adalah record master yang dipertahankan dan `sourceCustomerId` adalah record duplikat. Pastikan histori kendaraan, Service Order, invoice, CRM, dan audit tetap dapat ditelusuri sebelum menutup insiden.

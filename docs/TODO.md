@@ -243,6 +243,17 @@
 - [x] SRV5-007 [P0] Tambah test workflow, RBAC, validasi upload, dan rekonsiliasi pembayaran.
 - [x] SRV5-008 [P0] Jalankan migration, unit/API/E2E, typecheck, build, dan Docker smoke.
 
+## 14A. Page 5 - Customer Master Management
+
+- [x] CUS5-001 [P0] Normalisasi telepon/email, uniqueness master aktif, dan kandidat duplikat.
+- [x] CUS5-002 [P0] Edit pelanggan dan kendaraan dengan validasi schema serta audit mutation.
+- [x] CUS5-003 [P0] Merge pelanggan atomik dan histori pemindahan kepemilikan kendaraan.
+- [x] CUS5-004 [P1] Status aktif/nonaktif, Customer 360 actions, dan riwayat audit master data.
+- [x] CUS5-005 [P1] Consent komunikasi eksplisit dengan default `false` dan kanal pilihan tervalidasi.
+- [x] CUS5-006 [P1] Ekspor CSV terlindungi permission `users.manage` dan formula injection escaping.
+- [x] CUS5-007 [P0] Migration `025_customer_master_management.sql` dan `026_customer_communication_preferences.sql` tersedia dan berurutan.
+- [x] CUS5-008 [P0] Migration 025-026, E2E customer master terisolasi, 275 unit tests, typecheck, production build, DB verify, backup, restart, dan Docker health smoke lulus pada 29 September 2026.
+
 ## 15. Page 9 - CRM, Mekanik, dan Business Intelligence
 
 - [x] P9-001 [P0] Customer 360 memuat model kendaraan, riwayat service/sparepart/invoice/POS, follow-up, dan reminder.

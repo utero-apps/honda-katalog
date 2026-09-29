@@ -14,4 +14,6 @@ README.md
 data
 db/legacy
 .codegraph
+backups
+tmp
 

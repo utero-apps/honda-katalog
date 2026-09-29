@@ -45,3 +45,7 @@ next-env.d.ts
 
 # runtime product image uploads
 /data/product-images/
+
+# local operational artifacts
+/backups/
+/tmp/

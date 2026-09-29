@@ -19,6 +19,7 @@
     "e2e:inventory": "node --env-file-if-exists=.env.local scripts/e2e-inventory.mjs",
     "e2e:purchasing": "node --env-file-if-exists=.env.local scripts/e2e-purchasing.mjs",
     "e2e:service-order": "node --env-file-if-exists=.env.local scripts/service-order-e2e.mjs",
+    "e2e:customer-master": "node --env-file-if-exists=.env.local scripts/customer-master-e2e.mjs",
     "security:api": "node --env-file-if-exists=.env.local scripts/security-api.mjs",
     "catalog:migrate": "node --env-file-if-exists=.env.local scripts/catalog-migrate.mjs",
     "test:catalog-migrate": "node --test scripts/catalog-migrate.test.mjs"

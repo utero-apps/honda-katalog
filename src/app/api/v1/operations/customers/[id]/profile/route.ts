@@ -12,15 +12,25 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const id = z.uuid().parse((await context.params).id);
     const data = await withActorTransaction({ userId: user.id, role: user.role, requestId }, async (client) => {
       const customer = (await client.query(
-        "SELECT id,name,phone,email,address,notes,created_at AS \"createdAt\" FROM app.customers WHERE id=$1",
+        "SELECT id,name,phone,email,address,notes,is_active AS \"isActive\",communication_consent AS \"communicationConsent\",preferred_channel AS \"preferredChannel\",created_at AS \"createdAt\" FROM app.customers WHERE id=$1 AND merged_into_id IS NULL",
         [id],
       )).rows[0];
       if (!customer) throw new ApiError(404, "CUSTOMER_NOT_FOUND", "Pelanggan tidak ditemukan");
 
-      const vehicles = await client.query(`SELECT v.id,v.plate_number AS "plateNumber",v.year,v.odometer::text,m.name AS model
+      const vehicles = await client.query(`SELECT v.id,v.plate_number AS "plateNumber",v.vehicle_model_id AS "vehicleModelId",v.year,v.vin,v.engine_number AS "engineNumber",v.image_url AS "imageUrl",v.odometer::text,m.name AS model
         FROM app.customer_vehicles v LEFT JOIN app.vehicle_models m ON m.id=v.vehicle_model_id
         WHERE v.customer_id=$1 ORDER BY v.updated_at DESC`, [id]);
-      const orders = await client.query("SELECT id,order_number AS \"orderNumber\",status,complaint,opened_at AS \"openedAt\",completed_at AS \"completedAt\" FROM app.service_orders WHERE customer_id=$1 ORDER BY created_at DESC", [id]);
+      const orders = await client.query(`SELECT s.id,s.order_number AS "orderNumber",s.status,s.complaint,s.odometer::text,s.opened_at AS "openedAt",s.completed_at AS "completedAt",
+        v.plate_number AS "plateNumber",m.display_name AS "mechanicName",i.total::text,
+        (SELECT string_agg(j.name,', ' ORDER BY j.created_at,j.id) FROM app.service_order_jobs j WHERE j.service_order_id=s.id) AS "repairSummary"
+        FROM app.service_orders s JOIN app.customer_vehicles v ON v.id=s.vehicle_id
+        LEFT JOIN app.users m ON m.id=s.assigned_mechanic_id
+        LEFT JOIN app.customer_invoices i ON i.service_order_id=s.id AND i.status<>'reversed'
+        WHERE s.customer_id=$1 ORDER BY s.created_at DESC`, [id]);
+      const repeatRepairs = await client.query<{ count: string }>(`SELECT count(*)::text FROM (
+        SELECT completed_at,lag(completed_at) OVER (PARTITION BY vehicle_id ORDER BY completed_at) AS previous
+        FROM app.service_orders WHERE customer_id=$1 AND completed_at IS NOT NULL
+      ) visits WHERE completed_at-previous <= interval '30 days'`, [id]);
       const followUps = await client.query("SELECT id,due_at AS \"dueAt\",channel,status,notes FROM app.customer_follow_ups WHERE customer_id=$1 ORDER BY due_at DESC", [id]);
       const reminders = await client.query<{ odometerDue: string | null }>(`SELECT r.id,r.vehicle_id AS "vehicleId",v.plate_number AS "plateNumber",r.due_at AS "dueAt",r.odometer_due::text AS "odometerDue",r.status
         FROM app.service_reminders r JOIN app.customer_vehicles v ON v.id=r.vehicle_id
@@ -39,17 +49,25 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         FROM app.payments p JOIN app.customer_invoices i ON i.id=p.customer_invoice_id WHERE i.customer_id=$1 ORDER BY p.paid_at DESC`, [id]);
       const posTransactions = await client.query<{ total: string }>(`SELECT id,sale_number AS "saleNumber",status,total::text AS total,completed_at AS "completedAt",voided_at AS "voidedAt"
         FROM app.pos_sales WHERE customer_id=$1 ORDER BY completed_at DESC`, [id]);
+      const auditHistory = await client.query(`SELECT a.id,a.action,u.display_name AS "actorName",a.created_at AS "createdAt"
+        FROM app.audit_events a LEFT JOIN app.users u ON u.id=a.actor_id
+        WHERE (a.entity_type='customer' AND a.entity_id=$1)
+          OR (a.entity_type='customer_vehicle' AND a.entity_id IN
+            (SELECT id FROM app.customer_vehicles WHERE customer_id=$1))
+        ORDER BY a.created_at DESC LIMIT 50`, [id]);
 
       return {
         customer,
         vehicles: vehicles.rows.map((row) => ({ ...row, odometer: Number(row.odometer) })),
-        orders: orders.rows,
+        orders: orders.rows.map((row) => ({ ...row, odometer: row.odometer === null ? null : Number(row.odometer), total: row.total === null ? null : Number(row.total) })),
+        repeatRepairCount: Number(repeatRepairs.rows[0]?.count ?? 0),
         followUps: followUps.rows,
         reminders: reminders.rows.map((row) => ({ ...row, odometerDue: row.odometerDue === null ? null : Number(row.odometerDue) })),
         spareParts: spareParts.rows.map((row) => ({ ...row, quantity: Number(row.quantity), unitPrice: Number(row.unitPrice) })),
         invoices: invoices.rows.map((row) => ({ ...row, total: Number(row.total), paidAmount: Number(row.paidAmount), outstandingAmount: Number(row.outstandingAmount) })),
         payments: payments.rows.map((row) => ({ ...row, amount: Number(row.amount) })),
         posTransactions: posTransactions.rows.map((row) => ({ ...row, total: Number(row.total) })),
+        auditHistory: auditHistory.rows,
       };
     });
     return ok(data, { requestId });

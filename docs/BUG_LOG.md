@@ -1188,3 +1188,64 @@ Tambah policy baca sistem yang hanya berlaku pada Service Order selesai dan feed
 ### Verifikasi
 
 E2E terisolasi lulus untuk handover, tepat satu follow-up, tepat satu reminder 17.000 km, rating pelanggan, replay protection, dan duplicate issue protection.
+
+## BUG-20260929-046 - Consent pelanggan berisiko aktif tanpa persetujuan eksplisit
+
+- Tanggal: 29 September 2026
+- Status: Fixed
+- Area: Page 5, customer master dan CRM
+- Severity: High
+
+### Gejala
+
+Preferensi kanal tersedia, tetapi tanpa aturan default yang tegas pelanggan baru dapat dianggap menyetujui komunikasi otomatis.
+
+### Sumber
+
+Master pelanggan sebelumnya belum memiliki field consent, waktu perubahan consent, dan aktor yang melakukan perubahan.
+
+### Perbaikan
+
+Migration `026_customer_communication_preferences.sql` menambahkan `communication_consent NOT NULL DEFAULT false`, kanal pilihan tervalidasi, serta metadata perubahan. Schema mutation hanya menerima boolean eksplisit dan kanal `phone`, `whatsapp`, atau `email`.
+
+### Verifikasi
+
+Unit test memastikan `false` diterima sebagai opt-out, consent tidak dicoerce dari string, dan kanal di luar allowlist ditolak.
+
+## BUG-20260929-047 - Ekspor customer belum memiliki kontrak otorisasi teruji
+
+- Tanggal: 29 September 2026
+- Status: Fixed
+- Area: Page 5, customer export
+- Severity: High
+
+### Gejala
+
+Ekspor berisi PII pelanggan dan kendaraan, tetapi belum ada regression test yang membuktikan query tidak berjalan ketika akses ditolak.
+
+### Sumber
+
+Endpoint telah memakai permission `users.manage`, namun kontrak fail-closed belum dilindungi test khusus.
+
+### Perbaikan
+
+Tambah test otorisasi yang memverifikasi permission `users.manage` dan memastikan transaksi database tidak dimulai setelah respons 403. CSV tetap memakai escaping formula spreadsheet dan header unduhan privat tanpa cache.
+
+### Verifikasi
+
+Test schema customer, CSV, dan export authorization dijalankan sebagai suite customer management.
+# 2026-09-29 — Backup PostgreSQL gagal di container db-tools
+
+- Status: Fixed and verified pada 29 September 2026.
+- Sumber: target `db-tools` tidak memasang `pg_dump`, sehingga `scripts/backup.mjs` berhenti sebelum migration Page 5.
+- Dampak: backup pra-migration tidak terbentuk; migration aktif sengaja tidak dijalankan.
+- Perbaikan: pasang `postgresql-client` pada target `db-tools`, rebuild image, lalu ulang backup sebelum migration.
+- Verifikasi: dump pra-migration berukuran 6.049.959 byte terbentuk, migration 025–026 lulus, DB verify melaporkan 56 tabel FORCE RLS, dan health aplikasi kembali `ok`.
+
+# 2026-09-29 — Merge pelanggan opt-in gagal karena constraint kanal komunikasi
+
+- Status: Fixed and verified pada 29 September 2026.
+- Sumber: kontak ternormalisasi pelanggan sumber dikosongkan sebelum `communication_consent` dinonaktifkan.
+- Dampak: merge mengembalikan HTTP 500 ketika pelanggan sumber menyetujui WhatsApp/email.
+- Perbaikan: kosongkan kontak ternormalisasi dan nonaktifkan consent sumber dalam satu statement PostgreSQL; consent target tetap dipertahankan dan tidak diwarisi otomatis.
+- Verifikasi: unit test customer management 14/14 lulus dan E2E merge dengan pelanggan sumber opt-in lulus pada database Docker terisolasi.

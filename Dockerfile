@@ -12,6 +12,7 @@ RUN npm ci
 
 FROM deps AS db-tools
 WORKDIR /app
+RUN apk add --no-cache postgresql-client
 COPY scripts ./scripts
 COPY db ./db
 

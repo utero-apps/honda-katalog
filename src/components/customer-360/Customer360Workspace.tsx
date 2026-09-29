@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { CustomerMasterActions } from "./CustomerMasterActions";
 
 type Profile = {
   customer: {
@@ -11,6 +12,9 @@ type Profile = {
     email?: string | null;
     address?: string | null;
     notes?: string | null;
+    isActive?: boolean;
+    communicationConsent?: boolean;
+    preferredChannel?: "phone" | "whatsapp" | "email";
     createdAt?: string;
   };
   vehicles: Array<{
@@ -19,6 +23,9 @@ type Profile = {
     year?: number | null;
     odometer?: number | null;
     model?: string | null;
+    vehicleModelId?: string | null;
+    vin?: string | null;
+    engineNumber?: string | null;
   }>;
   orders: Array<{
     id: string;
@@ -27,7 +34,13 @@ type Profile = {
     complaint?: string | null;
     openedAt?: string;
     completedAt?: string | null;
+    odometer?: number | null;
+    plateNumber?: string;
+    mechanicName?: string | null;
+    total?: number | null;
+    repairSummary?: string | null;
   }>;
+  repeatRepairCount?: number;
   followUps: Array<{
     id: string;
     dueAt?: string;
@@ -85,16 +98,25 @@ type Profile = {
     completedAt?: string;
     voidedAt?: string | null;
   }>;
+  auditHistory?: Array<{
+    id: string;
+    action: string;
+    actorName?: string | null;
+    createdAt: string;
+    summary?: string | null;
+  }>;
 };
 type Envelope<T> = { data: T; error?: { message?: string } | null };
 async function requestProfile(customerId: string) {
   const response = await fetch(`/api/v1/operations/customers/${customerId}/profile`);
-  const body = (await response.json()) as Envelope<Profile>;
-  if (!response.ok) throw new Error(body.error?.message || "Profil pelanggan belum dapat dimuat");
+  const body = await response.json().catch(() => null) as Envelope<Profile> | null;
+  if (!response.ok) throw new Error(body?.error?.message || "Profil pelanggan belum dapat dimuat");
+  if (!body?.data) throw new Error("Respons profil pelanggan tidak lengkap. Muat ulang halaman.");
   return body.data;
 }
 const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" });
 const money = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const channelLabel = (channel?: "phone" | "whatsapp" | "email") => ({ phone: "telepon", whatsapp: "WhatsApp", email: "email" })[channel ?? "phone"];
 const statusLabel = (value?: string) =>
   ({
     open: "Aktif",
@@ -122,6 +144,13 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
   const [busyId, setBusyId] = useState("");
   const load = useCallback(async () => {
     setProfile(await requestProfile(customerId));
+  }, [customerId]);
+  const retryLoad = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try { setProfile(await requestProfile(customerId)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Profil pelanggan belum dapat dimuat"); }
+    finally { setLoading(false); }
   }, [customerId]);
   useEffect(() => {
     let active = true;
@@ -177,10 +206,19 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
           className="mx-auto mt-10 max-w-xl rounded-2xl border border-red-200 bg-red-50 p-6 text-center font-bold text-red-800"
         >
           {error}
+          <button type="button" onClick={() => void retryLoad()} className="mx-auto mt-4 block min-h-11 rounded-xl bg-red-700 px-4 text-sm font-black text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800">Coba lagi</button>
         </div>
       </Shell>
     );
   const { customer } = profile;
+  async function handleMasterSaved(message: string) {
+    try {
+      await load();
+      setActionMessage(message);
+    } catch {
+      setActionMessage(`${message} Tampilan terbaru belum dapat dimuat; gunakan Coba lagi atau muat ulang halaman.`);
+    }
+  }
   return (
     <Shell>
       <header className="border-b border-slate-200 bg-white">
@@ -203,19 +241,24 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
                 {customer.phone || "Telepon belum dicatat"}
                 {customer.email ? ` · ${customer.email}` : ""}
               </p>
+              <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${customer.isActive === false ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-800"}`}>
+                {customer.isActive === false ? "Pelanggan nonaktif" : "Pelanggan aktif"}
+              </span>
+              <p className="mt-2 text-xs font-semibold text-slate-500">Reminder: {customer.communicationConsent ? `diizinkan melalui ${channelLabel(customer.preferredChannel)}` : "belum disetujui pelanggan"}</p>
             </div>
-            <Link
-              href="/service/reception"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 text-sm font-black text-white"
-            >
-              Terima motor service
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/service/reception" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 text-sm font-black text-white">Terima motor service</Link>
+            </div>
           </div>
         </div>
       </header>
       <main className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-8">
         {actionMessage && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950 lg:col-span-2">{actionMessage}</p>}
         <div className="space-y-5">
+          <Card title="Kelola data pelanggan">
+            <p className="mb-4 text-sm text-slate-600">Perbarui identitas, kendaraan, kepemilikan, atau gabungkan data duplikat tanpa meninggalkan halaman.</p>
+            <CustomerMasterActions customer={customer} vehicles={profile.vehicles} onSaved={handleMasterSaved} />
+          </Card>
           <Card title="Kendaraan">
             <div className="grid gap-3 sm:grid-cols-2">
               {profile.vehicles.length ? (
@@ -235,6 +278,7 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
                       KM terakhir:{" "}
                       {Number(vehicle.odometer ?? 0).toLocaleString("id-ID")}
                     </p>
+                    {(vehicle.vin || vehicle.engineNumber) && <p className="mt-2 text-xs text-slate-500">{vehicle.vin ? `VIN ${vehicle.vin}` : ""}{vehicle.vin && vehicle.engineNumber ? " · " : ""}{vehicle.engineNumber ? `Mesin ${vehicle.engineNumber}` : ""}</p>}
                   </article>
                 ))
               ) : (
@@ -243,6 +287,7 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
             </div>
           </Card>
           <Card title="Riwayat Service Order">
+            <p className="mb-3 text-xs font-semibold text-slate-500">Kunjungan ulang dalam 30 hari: {profile.repeatRepairCount ?? 0}. Tinjau keluhan sebelum menandai sebagai perbaikan berulang.</p>
             {profile.orders.length ? (
               <div className="divide-y divide-slate-100">
                 {profile.orders.map((order) => (
@@ -258,6 +303,8 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
                       <p className="mt-1 line-clamp-1 text-sm text-slate-600">
                         {order.complaint || "Tanpa catatan keluhan"}
                       </p>
+                      <p className="mt-1 text-xs text-slate-500">{order.plateNumber ?? "-"} · {order.odometer?.toLocaleString("id-ID") ?? "-"} km · {order.mechanicName ?? "Mekanik belum ditentukan"}</p>
+                      {order.repairSummary && <p className="mt-1 line-clamp-2 text-xs text-slate-600">Perbaikan: {order.repairSummary}</p>}
                     </div>
                     <div className="text-right">
                       <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">
@@ -268,6 +315,7 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
                           ? date.format(new Date(order.openedAt))
                           : "-"}
                       </p>
+                      {order.total !== null && order.total !== undefined && <p className="mt-1 text-xs font-bold text-slate-800">{money.format(order.total)}</p>}
                     </div>
                   </Link>
                 ))}
@@ -353,6 +401,10 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
                 {customer.notes}
               </p>
             )}
+            <Data label="Terdaftar" value={customer.createdAt ? date.format(new Date(customer.createdAt)) : "-"} />
+          </Card>
+          <Card title="Audit & aktivitas data">
+            {profile.auditHistory?.length ? <ol className="space-y-3">{profile.auditHistory.map((entry) => <li key={entry.id} className="border-l-2 border-slate-200 pl-3"><p className="text-sm font-bold text-slate-900">{auditLabel(entry.action)}</p><p className="mt-1 text-xs text-slate-500">{date.format(new Date(entry.createdAt))}{entry.actorName ? ` · ${entry.actorName}` : ""}</p>{entry.summary && <p className="mt-1 text-sm text-slate-600">{entry.summary}</p>}</li>)}</ol> : <div className="space-y-3"><p className="text-sm text-slate-600">Log audit rinci akan muncul saat endpoint profil menyediakannya.</p><ol className="space-y-2 text-sm"><HistoryItem label="Pelanggan terdaftar" value={customer.createdAt ? date.format(new Date(customer.createdAt)) : "Tanggal tidak tersedia"} /><HistoryItem label="Kendaraan tercatat" value={`${profile.vehicles.length} kendaraan`} /><HistoryItem label="Service Order" value={`${profile.orders.length} riwayat`} /><HistoryItem label="Pembayaran" value={`${profile.payments.length} transaksi`} /></ol></div>}
           </Card>
           <Card title="Follow-up">
             <Activity items={profile.followUps} empty="Belum ada follow-up." kind="follow-ups" busyId={busyId} phone={customer.phone} onUpdate={updateActivity} />
@@ -368,6 +420,12 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
 
 function Shell({ children }: { children: ReactNode }) {
   return <div className="min-h-dvh bg-slate-50 text-slate-950">{children}</div>;
+}
+function auditLabel(action: string) {
+  return ({ "customer.update": "Data pelanggan diperbarui", "customer.merge": "Pelanggan digabung", "vehicle.update": "Data kendaraan diperbarui", "vehicle.owner.transfer": "Kepemilikan kendaraan dipindah" } as Record<string, string>)[action] ?? action;
+}
+function HistoryItem({ label, value }: { label: string; value: string }) {
+  return <li className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-2"><span className="font-semibold">{label}</span><span className="text-slate-600">{value}</span></li>;
 }
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (

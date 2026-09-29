@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { recordAudit } from "@/server/audit";
 import { ApiError } from "@/server/http";
 import type { CreateCustomerInput, CreateOrderInput, CreateVehicleInput, RecommendationInput } from "@/features/service-reception/schemas";
+import { normalizeCustomerEmail, normalizeCustomerPhone } from "@/features/customer-management/schemas";
 
 type Actor = { id: string; requestId: string };
 type Recommendation = { code: string; title: string; reason: string; priority: "normal" | "recommended" | "high" };
@@ -59,12 +60,12 @@ export async function createReceptionCustomer(client: PoolClient, actor: Actor, 
   let customer;
   try {
     customer = (await client.query(
-      `INSERT INTO app.customers(name,phone,email,address,notes,created_by,updated_by)
-       VALUES($1,$2,$3,$4,$5,$6,$6) RETURNING id,name,phone,email,address,notes,is_active AS "isActive"`,
-      [input.name, input.phone ?? null, input.email ?? null, input.address ?? null, input.notes ?? null, actor.id],
+      `INSERT INTO app.customers(name,phone,email,address,notes,normalized_phone,normalized_email,created_by,updated_by)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING id,name,phone,email,address,notes,is_active AS "isActive"`,
+      [input.name, input.phone ?? null, input.email ?? null, input.address ?? null, input.notes ?? null, normalizeCustomerPhone(input.phone), normalizeCustomerEmail(input.email), actor.id],
     )).rows[0];
   } catch (error) {
-    if (input.phone && isUniqueViolation(error)) throw new ApiError(409, "CUSTOMER_PHONE_EXISTS", "Nomor telepon sudah terdaftar");
+    if (isUniqueViolation(error)) throw new ApiError(409, "CUSTOMER_CONTACT_EXISTS", "Nomor telepon atau email sudah terdaftar");
     throw error;
   }
   await recordAudit(client, { actorId: actor.id, requestId: actor.requestId, action: "service_reception.customer.create", entityType: "customer", entityId: customer.id, after: customer });

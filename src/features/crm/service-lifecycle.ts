@@ -20,17 +20,19 @@ export async function createHandoverLifecycle(client: PoolClient, serviceOrderId
     vehicleId: string;
     serviceType: ServiceType;
     odometer: string | null;
-  }>(`SELECT customer_id AS "customerId",vehicle_id AS "vehicleId",service_type::text AS "serviceType",odometer::text
-      FROM app.service_orders WHERE id=$1`, [serviceOrderId])).rows[0];
+    preferredChannel: "phone" | "whatsapp" | "email";
+  }>(`SELECT so.customer_id AS "customerId",so.vehicle_id AS "vehicleId",so.service_type::text AS "serviceType",so.odometer::text,
+        c.preferred_channel AS "preferredChannel"
+      FROM app.service_orders so JOIN app.customers c ON c.id=so.customer_id WHERE so.id=$1`, [serviceOrderId])).rows[0];
   if (!order) throw new ApiError(404, "SERVICE_ORDER_NOT_FOUND", "Service order tidak ditemukan");
 
   const policy = getServiceLifecyclePolicy(order.serviceType);
   const followUp = (await client.query(
     `INSERT INTO app.customer_follow_ups(customer_id,service_order_id,due_at,channel,status,notes,automation_key)
-     VALUES($1,$2,now()+($3*interval '1 day'),'whatsapp','pending','Tindak lanjut kepuasan setelah serah terima',$4)
+     VALUES($1,$2,now()+($3*interval '1 day'),$4,'pending','Tindak lanjut kepuasan setelah serah terima',$5)
      ON CONFLICT(automation_key) DO NOTHING
      RETURNING id,due_at AS "dueAt",status`,
-    [order.customerId, serviceOrderId, policy.followUpDays, `handover-follow-up:${serviceOrderId}`],
+    [order.customerId, serviceOrderId, policy.followUpDays, order.preferredChannel, `handover-follow-up:${serviceOrderId}`],
   )).rows[0] ?? (await client.query('SELECT id,due_at AS "dueAt",status FROM app.customer_follow_ups WHERE automation_key=$1', [`handover-follow-up:${serviceOrderId}`])).rows[0];
   const odometer = order.odometer === null ? null : Number(order.odometer);
   const reminder = (await client.query(
