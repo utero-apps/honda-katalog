@@ -242,3 +242,19 @@
 - [x] SRV5-006 [P0] Tutup seluruh bypass status yang dapat melewati QC, invoice, pembayaran, atau handover.
 - [x] SRV5-007 [P0] Tambah test workflow, RBAC, validasi upload, dan rekonsiliasi pembayaran.
 - [x] SRV5-008 [P0] Jalankan migration, unit/API/E2E, typecheck, build, dan Docker smoke.
+
+## 15. Page 9 - CRM, Mekanik, dan Business Intelligence
+
+- [x] P9-001 [P0] Customer 360 memuat model kendaraan, riwayat service/sparepart/invoice/POS, follow-up, dan reminder.
+- [x] P9-002 [P0] Lifecycle CRM mendukung selesai, batal, jadwal ulang, tautan WhatsApp manual, dan status terminal aman.
+- [x] P9-003 [P0] Handover membuat follow-up dan reminder service idempotent berdasarkan jenis service serta KM terakhir.
+- [x] P9-004 [P0] Validasi relasi pelanggan–Service Order dan pelanggan–kendaraan, audit mutation, serta RLS tulis least privilege.
+- [x] P9-005 [P1] Detail mekanik memiliki filter periode, produktivitas, QC, fee, nilai jasa, dan layout responsif.
+- [x] P9-006 [P2] BI memiliki perbandingan periode, revenue/HPP/gross profit, repeat service enam bulan, top parts, slow moving, mekanik, dan drill-down.
+- [x] P9-007 [P3] Runner komunikasi jatuh tempo memakai lock, idempotensi per jadwal, audit, dan status provider eksplisit.
+- [x] P9-008 [P0] Unit/API tests, typecheck, production build, migration, RLS verification, Docker restart, dan read-only health/API smoke lulus.
+- [x] P9-009 [P1] Rating pelanggan tercatat pada SO selesai; target bulanan, kapasitas mingguan, dan bonus per order memiliki schema, endpoint admin, serta KPI detail mekanik.
+- [ ] P9-012 [P1] Form pengaturan target/kapasitas/bonus owner-admin dan rating langsung oleh pelanggan (bukan input petugas) belum tersedia.
+- [ ] P9-013 [P0] E2E write-path handover → jadwal CRM → feedback pada data uji terisolasi, termasuk matrix RLS cashier, belum dijalankan terhadap database aktif.
+- [ ] P9-010 [P3] Pengiriman WhatsApp/email otomatis, outbox retry, dan scheduler aktif memerlukan provider serta kredensial operasional; saat ini tersedia audit jatuh tempo dan runner manual.
+- [ ] P9-011 [P2] Tutup temuan RLS lama pada finance, warehouse, dan aset handover di luar scope CRM setelah penilaian dampak seluruh modul.

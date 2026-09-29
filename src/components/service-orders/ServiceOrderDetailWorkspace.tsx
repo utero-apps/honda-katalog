@@ -5,10 +5,16 @@ import Image from "next/image";
 import { BarcodeScannerDialog } from "@/components/CatalogTools";
 import { ServiceOrderContextPanels } from "@/components/service-orders/ServiceOrderContextPanels";
 import { HandoverAssetsPanel } from "@/components/service-orders/handover";
+import { CustomerFeedbackPanel } from "@/components/service-orders/CustomerFeedbackPanel";
+import { NextActionPanel, type NextActionPanelAction } from "@/components/service-orders/detail/NextActionPanel";
+import { ServiceOrderProgress } from "@/components/service-orders/detail/ServiceOrderProgress";
+import { RepairItemsList } from "@/components/service-orders/detail/RepairItemsList";
+import { isServiceInvoicePaid } from "./service-invoice-state";
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -27,18 +33,7 @@ const date = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-const stages = [
-  { key: "received", label: "Motor datang" },
-  { key: "customer_vehicle", label: "Pelanggan & kendaraan" },
-  { key: "diagnosed", label: "Keluhan & diagnosis" },
-  { key: "assigned", label: "Assign mekanik" },
-  { key: "started", label: "Pengerjaan servis" },
-  { key: "work_done", label: "Sparepart & jasa" },
-  { key: "qc_passed", label: "Quality check" },
-  { key: "invoiced", label: "Invoice" },
-  { key: "paid", label: "Pembayaran" },
-  { key: "handed_over", label: "Motor keluar" },
-] as const;
+type StageKey = "received" | "customer_vehicle" | "diagnosed" | "assigned" | "started" | "work_done" | "qc_passed" | "invoiced" | "paid" | "handed_over";
 const labels: Record<string, string> = {
   open: "Diterima",
   diagnosed: "Diagnosis",
@@ -85,6 +80,7 @@ type CatalogService = {
   name: string;
   fixedPrice: number;
 };
+type DetailTab = "summary" | "work" | "billing" | "history";
 
 export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<ServiceOrderWorkflow | null>(null);
@@ -92,6 +88,7 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
+  const [activeTab, setActiveTab] = useState<DetailTab>("summary");
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -126,18 +123,24 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
         );
         setOrder(data);
         setMessage("Perubahan berhasil disimpan.");
+        return true;
       } catch (reason) {
         setMessage(
           reason instanceof Error
             ? reason.message
             : "Perubahan belum dapat disimpan",
         );
+        return false;
       } finally {
         setBusy("");
       }
     },
     [orderId],
   );
+  const openSection = useCallback((tab: DetailTab, id: string) => {
+    setActiveTab(tab);
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, []);
   const totals = useMemo(
     () => ({
       jobs: (order?.jobs ?? []).reduce(
@@ -199,10 +202,10 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
   const approved = Boolean(order.estimate?.approvedAt);
   const qcPassed = order.qualityControl?.status === "passed";
   const handedOver = Boolean(order.handover?.handedOverAt);
-  const paid = Boolean(order.invoice && order.invoice.status !== "reversed" && (order.invoice.status === "paid" || (number(order.invoice.total) > 0 && number(order.invoice.outstandingAmount) <= 0)));
+  const paid = isServiceInvoicePaid(order.invoice);
   const invoiced = Boolean(order.invoice && order.invoice.status !== "reversed");
   const workDone = order.repairSummary?.completedWork ?? Boolean((order.jobs?.length || order.parts?.length) && (order.jobs ?? []).every((item) => item.status === "completed") && (order.parts ?? []).every((item) => Boolean(item.consumedAt)));
-  const stageDone: Record<(typeof stages)[number]["key"], boolean> = {
+  const stageDone: Record<StageKey, boolean> = {
     received: true,
     customer_vehicle: Boolean(order.customer?.id && order.vehicle?.id),
     assigned: Boolean(order.assignedMechanicId),
@@ -214,8 +217,6 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
     paid,
     handed_over: handedOver,
   };
-  const completedStageCount = stages.filter((stage) => stageDone[stage.key]).length;
-  const currentStage = stages.find((stage) => !stageDone[stage.key])?.key;
   const mechanicNames = new Map((order.mechanics ?? []).map((mechanic) => [mechanic.id, mechanic.name]));
   const repairItems = [
     ...(order.jobs ?? []).map((item) => ({ ...item, kind: "Jasa" as const })),
@@ -225,6 +226,74 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
   const usedParts = order.repairSummary?.partsUsed ?? (order.parts ?? []).filter((item) => Boolean(item.consumedAt)).length;
   const totalJobs = order.repairSummary?.totalJobs ?? order.jobs?.length ?? 0;
   const totalRepair = number(order.repairSummary?.total ?? order.estimate?.total ?? totals.jobs + totals.parts);
+  const phases = [
+    { key: "reception", label: "Penerimaan", done: stageDone.received && stageDone.customer_vehicle },
+    { key: "diagnosis", label: "Diagnosis", done: stageDone.assigned && stageDone.diagnosed && approved },
+    { key: "repair", label: "Pengerjaan", done: stageDone.started && stageDone.work_done },
+    { key: "quality", label: "Quality Control", done: stageDone.qc_passed },
+    { key: "billing", label: "Pembayaran", done: stageDone.invoiced && stageDone.paid },
+    { key: "handover", label: "Serah-terima", done: stageDone.handed_over },
+  ].map((phase, index, all) => ({ ...phase, current: order.status !== "cancelled" && !phase.done && all.slice(0, index).every((item) => item.done) }));
+  const completedPhaseCount = phases.filter((phase) => phase.done).length;
+  const incompleteJobs = (order.jobs ?? []).filter((item) => item.status !== "completed").length;
+  const unusedParts = (order.parts ?? []).filter((item) => !item.consumedAt).length;
+  let nextAction: { title: string; description: string; blockers: string[]; completedChecks: string[]; action?: NextActionPanelAction };
+  if (order.status === "cancelled" || handedOver) {
+    nextAction = {
+      title: handedOver ? "Service Order selesai" : "Service Order dibatalkan",
+      description: handedOver ? "Kendaraan telah diserahkan kepada penerima." : "Tidak ada tindakan operasional lanjutan.",
+      blockers: [], completedChecks: ["Riwayat Service Order tersimpan"],
+      action: { label: "Lihat riwayat", onClick: () => openSection("history", "service-order-tabs") },
+    };
+  } else if (!order.assignedMechanicId || !hasDiagnosis) {
+    nextAction = !order.assignedMechanicId ? {
+      title: "Tugaskan mekanik", description: "Pilih mekanik sebelum diagnosis dilanjutkan.",
+      blockers: ["Mekanik belum ditugaskan"], completedChecks: ["Kendaraan diterima"],
+      action: { label: "Pilih mekanik", onClick: () => openSection("summary", "mechanic-panel") },
+    } : {
+      title: "Lengkapi diagnosis", description: "Catat temuan agar estimasi dapat diproses.",
+      blockers: ["Diagnosis belum disimpan"], completedChecks: ["Mekanik sudah ditugaskan"],
+      action: { label: "Isi diagnosis", onClick: () => openSection("summary", "diagnosis-panel") },
+    };
+  } else if (!approved || order.status === "assigned") {
+    nextAction = !approved ? {
+      title: "Setujui pekerjaan", description: "Periksa diagnosis dan estimasi sebelum pekerjaan dimulai.",
+      blockers: [], completedChecks: ["Mekanik dan diagnosis siap"],
+      action: { label: "Setujui pekerjaan", busy: busy === "approve", onClick: () => void mutate("approve", { notes: "Diagnosis dan estimasi disetujui" }) },
+    } : {
+      title: "Mulai pengerjaan", description: "Pekerjaan siap dimulai.", blockers: [], completedChecks: ["Diagnosis dan estimasi disetujui"],
+      action: { label: "Mulai pengerjaan", busy: busy === "start", onClick: () => void mutate("start", {}) },
+    };
+  } else if (!workDone || !qcPassed) {
+    nextAction = !workDone ? {
+      title: "Selesaikan pekerjaan", description: "Konfirmasi pekerjaan jasa dan pemakaian sparepart.",
+      blockers: [incompleteJobs ? `${incompleteJobs} jasa belum selesai` : "", unusedParts ? `${unusedParts} sparepart belum dipakai` : "", !(order.jobs?.length || order.parts?.length) ? "Pekerjaan belum dicatat" : ""].filter(Boolean),
+      completedChecks: ["Pengerjaan dimulai"], action: { label: "Buka pekerjaan", onClick: () => openSection("work", "service-order-tabs") },
+    } : {
+      title: "Lakukan Quality Control", description: "Periksa kondisi akhir kendaraan sebelum membuat invoice.",
+      blockers: ["Quality Control belum lulus"], completedChecks: ["Pekerjaan bengkel selesai"],
+      action: { label: "Buka QC", onClick: () => openSection("work", "quality-control-panel") },
+    };
+  } else if (order.invoice?.status === "reversed") {
+    nextAction = {
+      title: "Invoice telah dibatalkan", description: "Pembayaran tidak dapat dicatat pada invoice yang dibatalkan. Periksa riwayat sebelum melanjutkan.",
+      blockers: ["Invoice dibatalkan"], completedChecks: ["Quality Control lulus"],
+      action: { label: "Lihat tagihan", onClick: () => openSection("billing", "billing-panel") },
+    };
+  } else if (!invoiced || !paid) {
+    nextAction = {
+      title: invoiced ? "Selesaikan pembayaran" : "Buat invoice",
+      description: invoiced ? `Sisa tagihan ${money.format(number(order.invoice?.outstandingAmount))}.` : "Quality Control lulus. Buat invoice dari pekerjaan tercatat.",
+      blockers: invoiced ? ["Tagihan belum lunas"] : [], completedChecks: ["Quality Control lulus"],
+      action: { label: invoiced ? "Catat pembayaran" : "Buka tagihan", onClick: () => openSection("billing", "billing-panel") },
+    };
+  } else {
+    nextAction = {
+      title: "Lengkapi serah-terima", description: "Checklist, foto akhir, dan tanda tangan penerima diperlukan.",
+      blockers: ["Bukti serah-terima belum dikonfirmasi"], completedChecks: ["Invoice lunas", "Quality Control lulus"],
+      action: { label: "Buka serah-terima", onClick: () => openSection("billing", "handover-panel") },
+    };
+  }
   return (
     <PageShell>
       <header className="border-b border-slate-200 bg-white">
@@ -266,88 +335,17 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto grid max-w-[96rem] gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
+      <main className="mx-auto grid max-w-[96rem] gap-5 px-4 pb-28 pt-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-8 lg:px-8">
         <div className="min-w-0 space-y-5">
-          <section
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
-            aria-labelledby="progress-title"
-          >
-            <h2 id="progress-title" className="text-lg font-black">
-              Progress pekerjaan
-            </h2>
-            <p className="mt-1 text-sm text-slate-600" role="status">
-              {order.status === "cancelled" ? "Order dibatalkan" : `${completedStageCount} dari ${stages.length} tahap tercatat selesai`}
-            </p>
-            <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {stages.map((stage, index) => {
-                const done = stageDone[stage.key];
-                const current = order.status !== "cancelled" && stage.key === currentStage;
-                return (
-                  <li
-                    key={stage.key}
-                    aria-current={current ? "step" : undefined}
-                    className={`rounded-xl border p-3 ${done ? "border-emerald-200 bg-emerald-50 text-emerald-950" : current ? "border-blue-300 bg-blue-50 text-blue-950" : "border-slate-200 bg-slate-50 text-slate-700"}`}
-                  >
-                    <span className={`grid size-7 place-items-center rounded-full text-xs font-black ${done ? "bg-emerald-700 text-white" : current ? "bg-blue-700 text-white" : "bg-slate-200 text-slate-700"}`}>
-                      {index + 1}
-                    </span>
-                    <p className="mt-2 text-sm font-bold">{stage.label}</p>
-                    <p className="mt-1 text-xs font-semibold">{done ? "Selesai" : current ? "Berikutnya" : "Belum selesai"}</p>
-                  </li>
-                );
-              })}
-            </ol>
-            {["open", "assigned"].includes(order.status) && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-black text-amber-950">
-                  Langkah berikutnya
-                </p>
-                <p className="mt-1 text-sm leading-6 text-amber-900">
-                  {!order.assignedMechanicId
-                    ? "Pilih mekanik terlebih dahulu."
-                    : !hasDiagnosis
-                      ? "Simpan diagnosis teknisi terlebih dahulu."
-                      : !approved
-                        ? "Setujui diagnosis dan estimasi pekerjaan."
-                        : "Mulai pengerjaan agar sparepart dapat ditambahkan."}
-                </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  {!approved && (
-                    <button
-                      type="button"
-                      disabled={
-                        !order.assignedMechanicId ||
-                        !hasDiagnosis ||
-                        busy === "approve"
-                      }
-                      onClick={() =>
-                        void mutate("approve", {
-                          notes: "Diagnosis dan estimasi disetujui",
-                        })
-                      }
-                      className="min-h-11 rounded-xl bg-amber-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {busy === "approve"
-                        ? "Menyetujui…"
-                        : "Setujui pekerjaan"}
-                    </button>
-                  )}
-                  {approved && order.status === "assigned" && (
-                    <button
-                      type="button"
-                      disabled={busy === "start"}
-                      onClick={() => void mutate("start", {})}
-                      className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      {busy === "start"
-                        ? "Memulai…"
-                        : "Mulai pengerjaan"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
+          <ServiceOrderProgress phases={phases} completedCount={completedPhaseCount} cancelled={order.status === "cancelled"} />
+          <NextActionPanel {...nextAction} />
+          <nav id="service-order-tabs" aria-label="Bagian Service Order" className="sticky top-0 z-20 grid grid-cols-4 gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm lg:static">
+            {([ ["summary", "Ringkasan"], ["work", "Pekerjaan"], ["billing", "Tagihan"], ["history", "Riwayat"] ] as const).map(([key, label]) => (
+              <button key={key} type="button" aria-pressed={activeTab === key} onClick={() => setActiveTab(key)} className={`min-h-11 rounded-lg px-1 text-xs font-bold focus-visible:outline-2 focus-visible:outline-blue-700 sm:px-3 sm:text-sm ${activeTab === key ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}>{label}</button>
+            ))}
+          </nav>
+          {message && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-900">{message}</p>}
+          {activeTab === "summary" && <>
           <div className="grid gap-5 xl:grid-cols-2">
             <InfoCard title="Pelanggan & kendaraan">
               {order.vehicle?.imageUrl && (
@@ -381,7 +379,7 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 }
               />
             </InfoCard>
-            <InfoCard title="Keluhan & diagnosis">
+            <div id="diagnosis-panel" className="scroll-mt-20"><InfoCard title="Keluhan & diagnosis">
               <p className="text-sm leading-6 text-slate-700">
                 {order.complaint || "Keluhan belum dicatat."}
               </p>
@@ -408,15 +406,23 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 busy={busy === "diagnosis"}
                 onSubmit={(payload) => void mutate("diagnosis", payload)}
               />
-            </InfoCard>
+            </InfoCard></div>
           </div>
           <ServiceOrderContextPanels orderId={order.id} vehicleId={order.vehicle?.id} />
+          <div id="mechanic-panel" className="scroll-mt-20"><InfoCard title="Mekanik">
+            <p className="text-sm font-bold text-slate-900">{order.assignedMechanicName ?? "Belum ditugaskan"}</p>
+            <AssignMechanic mechanics={order.mechanics ?? []} value={order.assignedMechanicId ?? ""} busy={busy === "assign"} onSubmit={(mechanicId) => void mutate("assign", { mechanicId })} />
+          </InfoCard></div>
+          </>}
+          {activeTab === "work" && <>
           <div className="grid gap-5 xl:grid-cols-2">
             <InfoCard title="Tambah pekerjaan / jasa">
               <QuickLineForm
                 kind="job"
                 busy={busy === "add_job"}
-                onSubmit={(payload) => void mutate("add_job", payload)}
+                disabled={!(["assigned", "in_progress"].includes(order.status))}
+                disabledMessage="Jasa hanya dapat ditambahkan sebelum Quality Control."
+                onSubmit={(payload) => mutate("add_job", payload)}
               />
             </InfoCard>
             <InfoCard title="Tambah sparepart">
@@ -425,11 +431,18 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 busy={busy === "add_part"}
                 disabled={order.status !== "in_progress"}
                 disabledMessage="Sparepart dapat ditambahkan setelah tombol Mulai pengerjaan ditekan."
-                onSubmit={(payload) => void mutate("add_part", payload)}
+                onSubmit={(payload) => mutate("add_part", payload)}
               />
             </InfoCard>
           </div>
-          <InfoCard title="Daftar pekerjaan & sparepart">
+          <div className="lg:hidden"><RepairItemsList
+            items={repairItems.map((item) => ({ ...item, name: item.name ?? "Tanpa nama", mechanicName: item.kind === "Jasa" ? item.mechanicName ?? mechanicNames.get(item.mechanicId ?? "") ?? order.assignedMechanicName : null, price: item.price ?? item.unitPrice }))}
+            canUpdate={order.status === "in_progress"}
+            busy={Boolean(busy)}
+            onCompleteJob={(jobId) => void mutate("complete_job", { jobId })}
+            onConsumePart={(partId) => void mutate("consume_part", { partId, idempotencyKey: crypto.randomUUID() })}
+          /></div>
+          <div className="hidden lg:block"><InfoCard title="Daftar pekerjaan & sparepart">
             {repairItems.length ? (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
@@ -497,7 +510,10 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
                 <p className="mt-1 text-lg font-black tabular-nums text-blue-950">{money.format(totalRepair)}</p>
               </div>
             </div>
-          </InfoCard>
+          </InfoCard></div>
+          <div id="quality-control-panel" className="scroll-mt-20">{order.status === "in_progress" && workDone ? <QualityControl value={order.qualityControl} busy={busy === "quality_check"} onSubmit={(payload) => void mutate("quality_check", payload)} /> : <InfoCard title="Quality Control"><p className="text-sm text-slate-700">{qcPassed ? "Pemeriksaan akhir sudah lulus." : "Selesaikan pekerjaan jasa dan konfirmasi pemakaian sparepart sebelum QC."}</p></InfoCard>}</div>
+          </>}
+          {activeTab === "history" && <>
           <InfoCard title="Ringkasan perbaikan">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -548,19 +564,14 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
               )}
             </ol>
           </InfoCard>
+          </>}
+          {activeTab === "billing" && <>
+            <div id="billing-panel" className="scroll-mt-20">{qcPassed || order.invoice ? <InvoiceCard orderId={orderId} invoice={order.invoice} onCreated={load} /> : <InfoCard title="Invoice & pembayaran"><p className="text-sm text-slate-700">Invoice dapat diproses setelah Quality Control lulus.</p></InfoCard>}</div>
+            <div id="handover-panel" className="scroll-mt-20">{paid || handedOver ? <HandoverAssetsPanel orderId={orderId} defaultRecipientName={order.customer?.name ?? ""} onCompleted={load} /> : <InfoCard title="Serah-terima"><p className="text-sm text-slate-700">Lengkapi pembayaran sebelum mengisi bukti serah-terima kendaraan.</p></InfoCard>}</div>
+            {handedOver && <CustomerFeedbackPanel orderId={orderId} />}
+          </>}
         </div>
-        <aside className="space-y-5 lg:sticky lg:top-5 lg:self-start">
-          <InfoCard title="Mekanik">
-            <p className="text-sm font-bold text-slate-900">
-              {order.assignedMechanicName ?? "Belum ditugaskan"}
-            </p>
-            <AssignMechanic
-              mechanics={order.mechanics ?? []}
-              value={order.assignedMechanicId ?? ""}
-              busy={busy === "assign"}
-              onSubmit={(mechanicId) => void mutate("assign", { mechanicId })}
-            />
-          </InfoCard>
+        <aside className="hidden space-y-5 lg:sticky lg:top-5 lg:block lg:self-start" aria-label="Ringkasan Service Order">
           <InfoCard title="Estimasi">
             <Data
               label="Jasa"
@@ -579,31 +590,10 @@ export function ServiceOrderDetailWorkspace({ orderId }: { orderId: string }) {
               </strong>
             </div>
           </InfoCard>
-          <QualityControl
-            value={order.qualityControl}
-            busy={busy === "quality_check"}
-            onSubmit={(payload) => void mutate("quality_check", payload)}
-          />
-          <InvoiceCard
-            orderId={orderId}
-            invoice={order.invoice}
-            onCreated={load}
-          />
-          <HandoverAssetsPanel
-            orderId={orderId}
-            defaultRecipientName={order.customer?.name ?? ""}
-            onCompleted={load}
-          />
-          {message && (
-            <p
-              role="status"
-              className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-900"
-            >
-              {message}
-            </p>
-          )}
+          <InfoCard title="Status sekarang"><StatusBadge status={order.status} /><p className="mt-3 text-sm text-slate-700">{nextAction.title}</p></InfoCard>
         </aside>
       </main>
+      {nextAction.action && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-lg backdrop-blur lg:hidden"><button type="button" disabled={nextAction.action.busy || nextAction.action.disabled} onClick={nextAction.action.onClick} className="min-h-12 w-full rounded-xl bg-blue-800 px-4 text-sm font-black text-white disabled:opacity-50">{nextAction.action.label}</button></div>}
     </PageShell>
   );
 }
@@ -719,7 +709,7 @@ function QuickLineForm({
   busy: boolean;
   disabled?: boolean;
   disabledMessage?: string;
-  onSubmit: (payload: Record<string, unknown>) => void;
+  onSubmit: (payload: Record<string, unknown>) => Promise<boolean>;
 }) {
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [catalogError, setCatalogError] = useState("");
@@ -804,17 +794,19 @@ function QuickLineForm({
     <>
       <form
       className="mt-4 grid gap-2"
-      onSubmit={(event: FormEvent<HTMLFormElement>) => {
+      onSubmit={async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (disabled) return;
-        const form = new FormData(event.currentTarget);
-        onSubmit({
+        const formElement = event.currentTarget;
+        const form = new FormData(formElement);
+        const saved = await onSubmit({
           name,
           productId: kind === "part" ? selectedProductId || undefined : undefined,
           quantity: Number(form.get("quantity")),
           price: Number(price),
         });
-        event.currentTarget.reset();
+        if (!saved) return;
+        formElement.reset();
         setSelectedProductId("");
         setName("");
         setPrice("");
@@ -859,17 +851,7 @@ function QuickLineForm({
           Scan kode sparepart
         </button>
       )}
-      <input
-        name="name"
-        required
-        disabled={disabled}
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder={
-          kind === "job" ? "Nama pekerjaan" : "Kode / nama sparepart"
-        }
-        className="min-h-11 rounded-xl border border-slate-300 px-3"
-      />
+      <label className="grid gap-1 text-sm font-bold text-slate-700">{kind === "job" ? "Nama pekerjaan" : "Kode / nama sparepart"}<input name="name" required disabled={disabled} value={name} onChange={(event) => setName(event.target.value)} className="min-h-11 rounded-xl border border-slate-300 px-3 font-normal" /></label>
       <div className="grid grid-cols-2 gap-2">
         <input
           name="quantity"
@@ -975,6 +957,9 @@ function InvoiceCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const pendingPayment = useRef<{ fingerprint: string; key: string } | null>(null);
+  const outstandingAmount = number(invoice?.outstandingAmount);
+  const invoicePaid = isServiceInvoicePaid(invoice);
   async function submit(payload: Record<string, unknown>) {
     setBusy(true);
     setError("");
@@ -984,6 +969,7 @@ function InvoiceCard({
         body: JSON.stringify(payload),
       });
       await onCreated();
+      pendingPayment.current = null;
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -996,7 +982,7 @@ function InvoiceCard({
   }
   return (
     <InfoCard title="Invoice & pembayaran">
-      {invoice ? (
+      {invoice && invoice.status !== "reversed" ? (
         <>
           <Data label="Nomor" value={invoice.invoiceNumber ?? "-"} />
           <Data label="Total" value={money.format(number(invoice.total))} />
@@ -1008,52 +994,51 @@ function InvoiceCard({
             label="Sisa"
             value={money.format(number(invoice.outstandingAmount))}
           />
-          <form
-            className="mt-3 grid gap-2 border-t border-slate-100 pt-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const form = new FormData(event.currentTarget);
-              void submit({
-                action: "record_payment",
-                method: form.get("method"),
-                amount: Number(form.get("amount")),
-                reference: String(form.get("reference") || "") || null,
-                idempotencyKey: crypto.randomUUID(),
-              });
-            }}
-          >
-            <select
-              name="method"
-              className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"
+          {invoicePaid ? (
+            <div role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+              <div className="flex items-start gap-3">
+                <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-700 font-black text-white">✓</span>
+                <div>
+                  <p className="font-black">Pembayaran lunas</p>
+                  <p className="mt-1 text-sm leading-6 text-emerald-900">Seluruh tagihan sudah dibayar. Form pembayaran ditutup untuk mencegah pencatatan ganda.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <form
+              className="mt-3 grid gap-2 border-t border-slate-100 pt-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                const payment = {
+                  method: String(form.get("method")),
+                  amount: Number(form.get("amount")),
+                  reference: String(form.get("reference") || "") || null,
+                };
+                const fingerprint = JSON.stringify(payment);
+                if (pendingPayment.current?.fingerprint !== fingerprint) {
+                  pendingPayment.current = { fingerprint, key: crypto.randomUUID() };
+                }
+                void submit({ action: "record_payment", ...payment, idempotencyKey: pendingPayment.current.key });
+              }}
             >
-              <option value="cash">Tunai</option>
-              <option value="transfer">Transfer</option>
-              <option value="card">Kartu</option>
-              <option value="qris">QRIS</option>
-              <option value="other">Lainnya</option>
-            </select>
-            <input
-              name="amount"
-              type="number"
-              min="1"
-              required
-              placeholder="Jumlah pembayaran"
-              className="min-h-11 rounded-xl border border-slate-300 px-3"
-            />
-            <input
-              name="reference"
-              maxLength={200}
-              placeholder="Nomor referensi (opsional)"
-              className="min-h-11 rounded-xl border border-slate-300 px-3"
-            />
-            <button
-              disabled={busy}
-              className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {busy ? "Mencatat…" : "Catat pembayaran"}
-            </button>
-          </form>
+              <label className="grid gap-1 text-sm font-bold text-slate-700">Metode pembayaran<select name="method" className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 font-normal">
+                <option value="cash">Tunai</option>
+                <option value="transfer">Transfer</option>
+                <option value="card">Kartu</option>
+                <option value="qris">QRIS</option>
+                <option value="other">Lainnya</option>
+              </select></label>
+              <label className="grid gap-1 text-sm font-bold text-slate-700">Jumlah pembayaran<input name="amount" type="number" min="1" max={outstandingAmount} defaultValue={outstandingAmount || undefined} required className="min-h-11 rounded-xl border border-slate-300 px-3 font-normal" /></label>
+              <label className="grid gap-1 text-sm font-bold text-slate-700">Nomor referensi <span className="font-normal text-slate-500">Opsional</span><input name="reference" maxLength={200} className="min-h-11 rounded-xl border border-slate-300 px-3 font-normal" /></label>
+              <button disabled={busy} className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">
+                {busy ? "Mencatat…" : "Catat pembayaran"}
+              </button>
+            </form>
+          )}
         </>
+      ) : invoice?.status === "reversed" ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4"><p className="font-black text-red-900">Invoice dibatalkan</p><p className="mt-1 text-sm text-red-800">Invoice reversal tidak dapat menerima pembayaran. Riwayat tetap tersimpan untuk audit.</p></div>
       ) : (
         <button
           disabled={busy}

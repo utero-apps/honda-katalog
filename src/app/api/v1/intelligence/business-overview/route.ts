@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePermission } from "@/server/auth/permissions";
 import { withActorTransaction } from "@/server/db";
 import { ApiError, fail, ok } from "@/server/http";
+import { previousPeriod } from "@/components/intelligence/business-period";
 
 const querySchema = z.object({
   from: z.iso.date().optional(),
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       { userId: user.id, role: user.role, requestId },
       async (client) => {
         const parameters = [dates.from, dates.exclusiveTo];
-        const summary = (await client.query(`WITH invoice_lines AS (
+        const summaryQuery = `WITH invoice_lines AS (
           SELECT ii.item_type, COALESCE(SUM(ii.line_total),0) amount
           FROM app.customer_invoice_items ii
           JOIN app.customer_invoices i ON i.id=ii.invoice_id
@@ -76,10 +77,23 @@ export async function GET(request: NextRequest) {
           (SELECT COUNT(*) FROM app.customers WHERE is_active)::int AS "totalCustomers",
           (SELECT COUNT(*) FROM active_customers)::int AS "activeCustomers",
           (SELECT COUNT(*) FROM returning_customers)::int AS "returningCustomers",
-          (SELECT COUNT(*) FROM app.customer_follow_ups WHERE status<>'completed' AND due_at <= now())::int AS "overdueFollowUps",
-          (SELECT COUNT(*) FROM app.service_reminders WHERE status<>'completed' AND due_at <= now())::int AS "dueReminders",
+          (SELECT COUNT(*) FROM app.customer_follow_ups WHERE status='pending' AND due_at <= now())::int AS "overdueFollowUps",
+          (SELECT COUNT(*) FROM app.service_reminders WHERE status='pending' AND due_at <= now())::int AS "dueReminders",
           (SELECT COUNT(*) FROM app.service_orders WHERE status NOT IN ('completed','cancelled'))::int AS "openOrders",
-          (SELECT COALESCE(SUM(b.quantity*p.hpp),0) FROM app.inventory_balances b JOIN app.products p ON p.id=b.product_id)::text AS "inventoryValue"` , parameters)).rows[0];
+          (SELECT COALESCE(SUM(b.quantity*p.hpp),0) FROM app.inventory_balances b JOIN app.products p ON p.id=b.product_id)::text AS "inventoryValue"`;
+        const summary = (await client.query(summaryQuery, parameters)).rows[0];
+        const previous = previousPeriod(dates.from, dates.to);
+        const previousSummary = (await client.query(summaryQuery, [previous.from, previous.exclusiveTo])).rows[0];
+        const repeatFrom = new Date(`${dates.exclusiveTo}T00:00:00.000Z`);
+        repeatFrom.setUTCMonth(repeatFrom.getUTCMonth() - 6);
+        const repeat = (await client.query(`WITH active AS (
+          SELECT DISTINCT customer_id FROM app.service_orders
+          WHERE status='completed' AND completed_at >= $1::date AND completed_at < $2::date
+        ) SELECT COUNT(*)::int active,
+          COUNT(*) FILTER (WHERE EXISTS (
+            SELECT 1 FROM app.service_orders prior WHERE prior.customer_id=active.customer_id
+              AND prior.status='completed' AND prior.completed_at < $1::date
+          ))::int AS "returning" FROM active`, [repeatFrom.toISOString().slice(0, 10), dates.exclusiveTo])).rows[0];
 
         const mechanics = (await client.query(`WITH orders AS (
           SELECT assigned_mechanic_id mechanic_id,
@@ -155,6 +169,13 @@ export async function GET(request: NextRequest) {
         const inventoryValue = numeric(summary.inventoryValue);
         return {
           range: { from: dates.from, to: dates.to },
+          previousRange: { from: previous.from, to: previous.to },
+          previousSummary: {
+            totalRevenue: numeric(previousSummary.totalRevenue), serviceRevenue: numeric(previousSummary.serviceRevenue),
+            sparepartRevenue: numeric(previousSummary.sparepartRevenue), totalCogs: numeric(previousSummary.totalCogs),
+            grossProfit: numeric(previousSummary.totalRevenue) - numeric(previousSummary.totalCogs),
+          },
+          repeatWindow: { from: repeatFrom.toISOString().slice(0, 10), to: dates.to },
           summary: {
             ...summary,
             totalRevenue,
@@ -164,7 +185,8 @@ export async function GET(request: NextRequest) {
             inventoryValue,
             grossProfit: totalRevenue - totalCogs,
             grossMarginPercent: totalRevenue ? Number((((totalRevenue - totalCogs) / totalRevenue) * 100).toFixed(2)) : 0,
-            repeatServicePercent: numeric(summary.activeCustomers) ? Number(((numeric(summary.returningCustomers) / numeric(summary.activeCustomers)) * 100).toFixed(1)) : 0,
+            repeatServicePercent: numeric(repeat.active) ? Number(((numeric(repeat.returning) / numeric(repeat.active)) * 100).toFixed(1)) : 0,
+            repeatActiveCustomers: numeric(repeat.active), repeatReturningCustomers: numeric(repeat.returning),
             inventoryTurnover: inventoryValue ? Number((totalCogs / inventoryValue).toFixed(2)) : 0,
           },
           mechanics,

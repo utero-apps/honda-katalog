@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 type Profile = {
   customer: {
@@ -87,6 +87,12 @@ type Profile = {
   }>;
 };
 type Envelope<T> = { data: T; error?: { message?: string } | null };
+async function requestProfile(customerId: string) {
+  const response = await fetch(`/api/v1/operations/customers/${customerId}/profile`);
+  const body = (await response.json()) as Envelope<Profile>;
+  if (!response.ok) throw new Error(body.error?.message || "Profil pelanggan belum dapat dimuat");
+  return body.data;
+}
 const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" });
 const money = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const statusLabel = (value?: string) =>
@@ -112,16 +118,16 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const load = useCallback(async () => {
+    setProfile(await requestProfile(customerId));
+  }, [customerId]);
   useEffect(() => {
     let active = true;
-    void fetch(`/api/v1/operations/customers/${customerId}/profile`)
-      .then(async (response) => {
-        const body = (await response.json()) as Envelope<Profile>;
-        if (!response.ok)
-          throw new Error(
-            body.error?.message || "Profil pelanggan belum dapat dimuat",
-          );
-        if (active) setProfile(body.data);
+    void requestProfile(customerId)
+      .then((data) => {
+        if (active) setProfile(data);
       })
       .catch((reason) => {
         if (active)
@@ -138,6 +144,23 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
       active = false;
     };
   }, [customerId]);
+  async function updateActivity(kind: "follow-ups" | "reminders", id: string, changes: { status?: string; dueAt?: string }) {
+    setBusyId(id);
+    setActionMessage("");
+    try {
+      const response = await fetch(`/api/v1/intelligence/${kind}/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes),
+      });
+      const body = (await response.json()) as Envelope<unknown>;
+      if (!response.ok) throw new Error(body.error?.message || "Perubahan CRM gagal disimpan");
+      await load();
+      setActionMessage("Perubahan CRM tersimpan.");
+    } catch (reason) {
+      setActionMessage(reason instanceof Error ? reason.message : "Perubahan CRM gagal disimpan");
+    } finally {
+      setBusyId("");
+    }
+  }
   if (loading)
     return (
       <Shell>
@@ -191,6 +214,7 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
         </div>
       </header>
       <main className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-8">
+        {actionMessage && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950 lg:col-span-2">{actionMessage}</p>}
         <div className="space-y-5">
           <Card title="Kendaraan">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -331,10 +355,10 @@ export function Customer360Workspace({ customerId }: { customerId: string }) {
             )}
           </Card>
           <Card title="Follow-up">
-            <Activity items={profile.followUps} empty="Belum ada follow-up." />
+            <Activity items={profile.followUps} empty="Belum ada follow-up." kind="follow-ups" busyId={busyId} phone={customer.phone} onUpdate={updateActivity} />
           </Card>
           <Card title="Reminder service">
-            <Activity items={profile.reminders} empty="Belum ada reminder service terjadwal." />
+            <Activity items={profile.reminders} empty="Belum ada reminder service terjadwal." kind="reminders" busyId={busyId} phone={customer.phone} onUpdate={updateActivity} />
           </Card>
         </aside>
       </main>
@@ -367,6 +391,10 @@ function Metric({ label, value, emphasis = false }: { label: string; value: stri
 function Activity({
   items,
   empty,
+  kind,
+  busyId,
+  phone,
+  onUpdate,
 }: {
   items: Array<{
     id: string;
@@ -378,7 +406,12 @@ function Activity({
     plateNumber?: string;
   }>;
   empty: string;
+  kind: "follow-ups" | "reminders";
+  busyId: string;
+  phone?: string | null;
+  onUpdate: (kind: "follow-ups" | "reminders", id: string, changes: { status?: string; dueAt?: string }) => Promise<void>;
 }) {
+  const whatsappNumber = phone?.replace(/\D/g, "").replace(/^0/, "62");
   return items.length ? (
     <ul className="space-y-3">
       {items.map((item) => (
@@ -401,6 +434,21 @@ function Activity({
             <p className="mt-1 text-xs text-slate-500">
               {date.format(new Date(item.dueAt))}
             </p>
+          )}
+          {!["completed", "cancelled"].includes(item.status ?? "") && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" disabled={busyId === item.id} onClick={() => void onUpdate(kind, item.id, { status: "completed" })} className="min-h-11 rounded-lg bg-blue-700 px-3 text-xs font-bold text-white disabled:opacity-50">Selesai</button>
+              <button type="button" disabled={busyId === item.id} onClick={() => void onUpdate(kind, item.id, { status: "cancelled" })} className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-bold disabled:opacity-50">Batalkan</button>
+              {whatsappNumber && <a className="inline-flex min-h-11 items-center rounded-lg border border-green-700 px-3 text-xs font-bold text-green-800" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer">Buka WhatsApp</a>}
+              <form className="flex w-full flex-wrap items-end gap-2" onSubmit={(event) => {
+                event.preventDefault();
+                const value = new FormData(event.currentTarget).get("dueAt");
+                if (typeof value === "string" && value) void onUpdate(kind, item.id, { dueAt: new Date(value).toISOString() });
+              }}>
+                <label className="text-xs font-bold text-slate-700">Jadwalkan ulang<input name="dueAt" type="datetime-local" required className="mt-1 block min-h-11 rounded-lg border border-slate-300 px-2 text-sm text-slate-950" /></label>
+                <button disabled={busyId === item.id} className="min-h-11 rounded-lg border border-blue-700 px-3 text-xs font-bold text-blue-800 disabled:opacity-50">Simpan jadwal</button>
+              </form>
+            </div>
           )}
         </li>
       ))}

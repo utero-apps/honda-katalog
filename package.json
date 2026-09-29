@@ -14,6 +14,7 @@
     "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
     "db:restore": "node --env-file-if-exists=.env.local scripts/restore.mjs",
     "db:verify": "node --env-file-if-exists=.env.local scripts/verify-db.mjs",
+    "automation:due": "node --env-file-if-exists=.env.local scripts/process-due-communications.mjs",
     "e2e:api": "node --env-file-if-exists=.env.local scripts/e2e-api.mjs",
     "e2e:inventory": "node --env-file-if-exists=.env.local scripts/e2e-inventory.mjs",
     "e2e:purchasing": "node --env-file-if-exists=.env.local scripts/e2e-purchasing.mjs",

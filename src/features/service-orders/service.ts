@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { PoolClient } from "pg";
 import { recordAudit } from "@/server/audit";
 import { ApiError } from "@/server/http";
+import { createHandoverLifecycle } from "@/features/crm/service-lifecycle";
 import type { InvoiceInput, WorkflowActionInput } from "@/features/service-orders/schemas";
 
 type Actor = { id: string; role: string; requestId: string };
@@ -265,6 +266,7 @@ export async function executeWorkflow(client: PoolClient, actor: Actor, orderId:
     if (!canHandover(order.status, readiness)) throw new ApiError(409, "HANDOVER_NOT_READY", "QC lulus dan invoice lunas wajib sebelum handover");
     await client.query("UPDATE app.service_orders SET handed_over_at=now(),handed_over_by=$1,handover_recipient_name=$2,handover_signature_reference=$3,handover_notes=$4,completed_at=now(),updated_by=$1,updated_at=now() WHERE id=$5", [actor.id, input.recipientName, input.signatureReference ?? null, input.notes ?? null, order.id]);
     await transition(client, actor, order, "completed", "Motor diserahkan kepada pelanggan");
+    await createHandoverLifecycle(client, order.id);
     result = { handedOver: true };
   }
   await recordAudit(client, { actorId: actor.id, requestId: actor.requestId, action: `service_order.workflow.${input.action}`, entityType: "service_order", entityId: order.id, after: result });
